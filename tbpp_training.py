@@ -6,8 +6,8 @@ import tensorflow.keras.backend as K
 from utils.training import smooth_l1_loss, softmax_loss, focal_loss, ciou_loss, reduced_focal_loss
 from ssd_training import compute_metrics
 
-from min_area_enclosing_box import smallest_bounding_box, enclosing_box_pca
-from box_utils.iou_rotate import iou_rotate_calculate
+# from min_area_enclosing_box import smallest_bounding_box, enclosing_box_pca
+# from box_utils.iou_rotate import iou_rotate_calculate
 
 import tensorflow.keras.backend as K
 

@@ -82,7 +82,7 @@ def multibox_head(source_layers, num_priors, normalizations=None, softmax=True, 
     return predictions
 
 
-def TBPP512(input_shape=(512, 512, 3), softmax=True, aspect_ratios=[1,2,3,5,1/2,1/3,1/5], scale=0.5, isQuads=True, isRbb=True, num_classes=2):
+def TBPP512(input_shape=(512, 512, 3), softmax=True, aspect_ratios=[1,2,3,5,1/2,1/3,1/5], scale=0.5, isQuads=True, isRbb=True, num_classes=2, activation='relu'):
     """TextBoxes++512 architecture.
 
     # Arguments
@@ -120,13 +120,13 @@ def TBPP512(input_shape=(512, 512, 3), softmax=True, aspect_ratios=[1,2,3,5,1/2,
     
     return model
 
-def DSODTBPP512(input_shape=(512, 512, 3), softmax=True, aspect_ratios=[1,2,3,5,1/2,1/3,1/5], scale=0.5, isQuads=True, isRbb=True, num_classes=2):
+def DSODTBPP512(input_shape=(512, 512, 3), softmax=True, aspect_ratios=[1,2,3,5,1/2,1/3,1/5], scale=0.5, isQuads=True, isRbb=True, num_classes=2, activation='relu'):
     """DenseNet based Architecture for TextBoxes++512.
     """
     
     # DSOD body
     x = input_tensor = Input(shape=input_shape)
-    source_layers = dsod512_body(x)
+    source_layers = dsod512_body(x, activation=activation)
     
     num_maps = len(source_layers)
     
@@ -223,13 +223,13 @@ def multibox_head_separable(source_layers, num_priors, normalizations=None, soft
     return predictions
     
 
-def TBPP512_dense_separable(input_shape=(512, 512, 3), softmax=True, aspect_ratios=[1,2,3,5,1/2,1/3,1/5], scale=0.5, isQuads=True, isRbb=True, num_dense_segs=3, use_prev_feature_map=True, num_multi_scale_maps=5, num_classes=2):
+def TBPP512_dense_separable(input_shape=(512, 512, 3), softmax=True, aspect_ratios=[1,2,3,5,1/2,1/3,1/5], scale=0.5, isQuads=True, isRbb=True, num_dense_segs=3, use_prev_feature_map=True, num_multi_scale_maps=5, num_classes=2, activation='relu'):
     """TextBoxes++512 architecture with dense blocks and separable convolution.
     """
     
     # custom body
     x = input_tensor = Input(shape=input_shape)
-    source_layers = ssd512_dense_separable_body(x, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps)
+    source_layers = ssd512_dense_separable_body(x, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, activation=activation)
     
     num_maps = len(source_layers)
     

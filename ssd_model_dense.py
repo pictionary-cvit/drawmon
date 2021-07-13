@@ -5,7 +5,7 @@ from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import concatenate
 
-from utils.layers import leaky_relu
+from utils.layers import leaky_relu, mish
 
 
 def bn_acti_conv(x, filters, kernel_size=1, stride=1, padding='same', activation='relu'):
@@ -96,6 +96,9 @@ def dsod512_body(x, activation='relu'):
     if activation == 'leaky_relu':
         activation = leaky_relu
     
+    if activation == 'mish':
+        activation = mish
+
     growth_rate = 48
     compression = 1.0
     source_layers = []

@@ -54,6 +54,7 @@ decay_factor = 0.0 # No Decay
 
 isfl='True'
 neg_pos_ratio = 3.0
+activation = 'relu'
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--data', type=str, required=False, default=data_path)
@@ -83,7 +84,7 @@ parser.add_argument('--df', type=float, required=False, default=decay_factor)
 
 parser.add_argument('--npr', type=float, required=False, default=neg_pos_ratio)
 parser.add_argument('--isfl', type=eval, choices=[True, False], required=False, default=isfl)
-
+parser.add_argument('--activation', type=str, required=False, default='relu')
 
 
 
@@ -115,7 +116,7 @@ decay_factor = args.df # No Decay
 
 isfl=args.isfl
 neg_pos_ratio = args.npr
-
+activation = args.activation
 
 tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices('GPU')) > 0 
@@ -125,7 +126,7 @@ is_gpu
 
 
 # TextBoxes++
-model = TBPP512_dense_separable(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes)
+model = TBPP512_dense_separable(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes, activation=activation)
 model.num_classes = num_classes
 freeze = []
 '''

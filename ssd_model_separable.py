@@ -6,8 +6,7 @@ from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import concatenate
 
-from utils.layers import leaky_relu
-
+from utils.layers import leaky_relu, mish
 
 def bn_acti_conv(x, filters, kernel_size=1, stride=1, padding='same', activation='relu'):
     x = BatchNormalization(scale=True)(x)
@@ -44,6 +43,9 @@ def ssd512_dense_separable_body(x, activation='relu', num_dense_segs=3, use_prev
     
     if activation == 'leaky_relu':
         activation = leaky_relu
+
+    if activation == 'mish':
+        activation = mish 
     
     growth_rate = 48
     compressed_features = 224

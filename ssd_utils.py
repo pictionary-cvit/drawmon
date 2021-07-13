@@ -7,7 +7,7 @@ import cv2
 from tqdm import tqdm
 
 from utils.bboxes import iou
-from utils.model import load_weights, calc_memory_usage, count_parameters, plot_parameter_statistic, calc_receptive_field
+# from utils.model import load_weights, calc_memory_usage, count_parameters, plot_parameter_statistic, calc_receptive_field
 from utils.vis import to_rec
 
 

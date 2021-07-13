@@ -13,7 +13,7 @@ from tensorflow.keras.models import Model
 
 from utils.layers import Normalize
 from ssd_model_dense import dsod300_body, dsod512_body
-from ssd_model_resnet import ssd512_resnet_body
+# from ssd_model_resnet import ssd512_resnet_body
 
 
 def ssd300_body(x):
