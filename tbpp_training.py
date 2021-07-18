@@ -191,7 +191,7 @@ class TBPPFocalLoss(object):
         
         if self.isfl:
             print("Evaluating focal-loss......")
-            conf_loss = focal_loss(conf_true, conf_pred, alpha=[0.002, 0.998])
+            conf_loss = focal_loss(conf_true, conf_pred, alpha=[0.002, 0.11721553, 0.28019262, 0.27949907, 0.32109278])
             conf_loss = tf.reduce_sum(conf_loss)
             conf_loss = conf_loss / (num_total + eps)
         else:

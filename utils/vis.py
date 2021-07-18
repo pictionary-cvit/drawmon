@@ -26,7 +26,7 @@ def to_rec(box, image_size):
     return xy_rec
 
 
-def plot_box(box, box_format='xywh', color='r', linewidth=1, normalized=False, vertices=False):
+def plot_box(box, box_format='xywh', color='r', linewidth=3, normalized=False, vertices=False):
     if box_format == 'xywh': # opencv
         xmin, ymin, w, h = box
         xmax, ymax = xmin + w, ymin + h
@@ -44,5 +44,5 @@ def plot_box(box, box_format='xywh', color='r', linewidth=1, normalized=False, v
     if vertices:
         c = 'rgby'
         for i in range(4):
-            plt.plot(xy_rec[i,0],xy_rec[i,1], c[i], marker='o', markersize=4)
+            plt.plot(xy_rec[i,0],xy_rec[i,1], c[i], marker='o', markersize=4, linewidth=linewidth)
 

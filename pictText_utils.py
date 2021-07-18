@@ -1,3 +1,4 @@
+from Pipeline.Utils.IDUtils import CircleId, MultiNumberId, SymbolId, CharacterId
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -7,7 +8,7 @@ import datetime
 from Pipeline.Core import Dataset as PDS
 from Pipeline.DatasetProcessor import Transformers
 from Pipeline.DatasetProcessor.Transformers.Utils import RenderingUtils
-from Pipeline.DatasetProcessor.Transformers.Utils.IDUtils import WordIdOnlyText as wordId
+from Pipeline.DatasetProcessor.Transformers.Utils.IDUtils import TextWordId
 
 class Generator(object):
     def __init__(self, data_path, padding=0):
@@ -88,6 +89,9 @@ class Generator(object):
     def shiftbox(self, bboxes):
         return [(np.array(bbox) + self.padding).tolist() for bbox in bboxes]
     
+    def getClass(self, inputs):
+        bbox, metadata = inputs
+        return [item["anomaly_class"] for item in metadata]
     
 
     def getDS(self, split="train", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=1, augmented = "**"):
@@ -103,12 +107,20 @@ class Generator(object):
         
         if self.padding > 0: ds_img = ds_img.map(self.pad)
 
-        ds_bbox = ds\
-        .map(Transformers.AbsPointsToOBBCallable(wordId, max_erase_percentage=max_erase_percentage, num_workers=num_workers))\
+        idFns = [TextWordId, MultiNumberId, SymbolId, CircleId]
+        ds_bbox_class = ds\
+        .map(Transformers.AbsPointsToOBBCallable(idFns, max_erase_percentage=max_erase_percentage, num_workers=num_workers))\
+        
+        ds_only_bbox = ds_bbox_class\
         .map(self.stripMetadata)\
         .map(self.convertBboxToMinMax)\
         .map(self.startClkwiseFromTopLeft)\
         .map(self.getOnlyObb)
+
+        ds_only_class = ds_bbox_class\
+        .map(self.getClass)
+
+        ds_bbox = ds_only_bbox.zip(ds_only_class)
         
         if self.padding > 0: ds_bbox = ds_bbox.map(self.shiftbox)
     
@@ -120,7 +132,6 @@ class Generator(object):
 def convertToCentroid(bb):
     """
         bb: (4 coords = 8 values)
-
         return cx, cy, w, h
     """
     bb = np.array(bb)
@@ -139,7 +150,6 @@ def convertToCentroid(bb):
 def convertToMinMax(bb):
     """
         bb: (4 coords = 8 values)
-
         return mx, my, Mx, My
     """
     bb = np.array(bb)
@@ -152,7 +162,6 @@ def convertToMinMax(bb):
 def convertCentroidToMinMax(bb):
     """
         bb (cx, cy, w, h)
-
         return (mx, my, Mx, My)
     """
     bb = np.array(bb)
@@ -173,7 +182,6 @@ def convertCentroidToMinMax(bb):
 def convertMinMaxToCenteroid(bb):
     """
         bb (mx, my, Mx, My)
-
         return (cx, cy, w, h)
     """
     bb = np.array(bb)
@@ -195,7 +203,6 @@ def convertMinMaxToCenteroid(bb):
 def convertTo2PH(obb):
     """
         obb: (4 coords = 8 values)
-
         return mx, my, Mx, My, h
     """
     obb = np.array(obb)
