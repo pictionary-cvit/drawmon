@@ -6,15 +6,19 @@ from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import concatenate
 
-from utils.layers import leaky_relu, mish
+from utils.layers import leaky_relu, Mish
 
 def bn_acti_conv(x, filters, kernel_size=1, stride=1, padding='same', activation='relu'):
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
+    
     if kernel_size > 1:
         x = SeparableConv2D(filters, kernel_size, depth_multiplier=1, strides=stride, padding=padding)(x)
     else:
         x = Conv2D(filters, kernel_size, strides=stride, padding=padding)(x)
+    
     return x
 
 def dense_block(x, n, growth_rate, width=4, activation='relu'):
@@ -30,7 +34,10 @@ def dense_block(x, n, growth_rate, width=4, activation='relu'):
 
 def downsampling_block(x, filters, width, padding='same', activation='relu'):
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
+    
     x1 = MaxPooling2D(pool_size=2, strides=2, padding=padding)(x)
     x2 = DepthwiseConv2D(3, depth_multiplier=1, strides=2, padding=padding)(x)
     x = concatenate([x1, x2], axis=3)
@@ -43,9 +50,6 @@ def ssd512_dense_separable_body(x, activation='relu', num_dense_segs=3, use_prev
     
     if activation == 'leaky_relu':
         activation = leaky_relu
-
-    if activation == 'mish':
-        activation = mish 
     
     growth_rate = 48
     compressed_features = 224
@@ -53,13 +57,16 @@ def ssd512_dense_separable_body(x, activation='relu', num_dense_segs=3, use_prev
     
     x = SeparableConv2D(96, 3, depth_multiplier=32, strides=2, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = SeparableConv2D(96, 3, depth_multiplier=1, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = SeparableConv2D(96, 3, depth_multiplier=1, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     
     if (num_dense_segs >= 4):
         x = MaxPooling2D(pool_size=2, strides=2)(x)

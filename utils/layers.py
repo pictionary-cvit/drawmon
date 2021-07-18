@@ -27,24 +27,37 @@ def leaky_relu(x):
     return x
 
 
+@tf.custom_gradient
+def custom_op(x):
+    result = x*tf.math.tanh(tf.math.softplus(x))
+    
+    def custom_grad(dy):
+        # v = 1. + tf.math.exp(x)
+        # h = tf.math.log(v)
+        # grad_gh = 1./(tf.math.square(tf.math.cosh(h)))
+
+        grad_hx = tf.math.sigmoid(x)
+       
+        grad_gh = 1 - tf.math.square(tf.math.tanh(tf.math.softplus(x))) 
+        grad_gx = grad_gh * grad_hx
+
+        grad_f = tf.math.tanh(tf.math.softplus(x)) + x*grad_gx
+
+        grad = dy * grad_f
+        
+        return grad   
 
 
-def mish(x) -> tf.Tensor:
-    """Mish: A Self Regularized Non-Monotonic Neural Activation Function.
-    See [Mish: A Self Regularized Non-Monotonic Neural Activation Function](https://arxiv.org/abs/1908.08681).
-   
-    <tf.Tensor: shape=(3,), dtype=float32, numpy=array([0.865098..., 0.       , 0.865098...], dtype=float32)>
-   
-    Args:
-        x: A `Tensor`. Must be one of the following types:
-            `bfloat16`, `float16`, `float32`, `float64`.
-    Returns:
-        A `Tensor`. Has the same type as `x`.
-    """
-    x = tf.convert_to_tensor(x)
-    return x * tf.math.tanh(tf.math.softplus(x))
+    return result, custom_grad
 
 
+class Mish(Layer):
+    def __init__(self):
+        super(Mish, self).__init__()
+
+
+    def call(self, x):
+        return custom_op(x)
 
 
 class Normalize(Layer):

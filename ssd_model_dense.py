@@ -5,12 +5,13 @@ from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import concatenate
 
-from utils.layers import leaky_relu, mish
+from utils.layers import leaky_relu, Mish
 
 
 def bn_acti_conv(x, filters, kernel_size=1, stride=1, padding='same', activation='relu'):
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = Conv2D(filters, kernel_size, strides=stride, padding=padding)(x)
     return x
 
@@ -45,13 +46,16 @@ def dsod300_body(x, activation='relu'):
     # Stem
     x = Conv2D(64, 3, strides=2, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = Conv2D(64, 3, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = Conv2D(128, 3, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = MaxPooling2D(pool_size=2, strides=2)(x)
     # Dense Block 1
     x = dense_block(x, 6, growth_rate, 4, activation)
@@ -96,8 +100,6 @@ def dsod512_body(x, activation='relu'):
     if activation == 'leaky_relu':
         activation = leaky_relu
     
-    if activation == 'mish':
-        activation = mish
 
     growth_rate = 48
     compression = 1.0
@@ -106,13 +108,16 @@ def dsod512_body(x, activation='relu'):
     # Stem
     x = Conv2D(64, 3, strides=2, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = Conv2D(64, 3, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = Conv2D(128, 3, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = MaxPooling2D(pool_size=2, strides=2)(x)
     
     # Dense Block 1
@@ -169,13 +174,16 @@ def ssd384x512_dense_body(x, activation='relu'):
     # Stem
     x = Conv2D(64, 3, strides=2, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = Conv2D(64, 3, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = Conv2D(96, 3, strides=1, padding='same')(x)
     x = BatchNormalization(scale=True)(x)
-    x = Activation(activation)(x)
+    if activation == 'mish': x = Mish()(x)
+    else: x = Activation(activation)(x)
     x = MaxPooling2D(pool_size=2, strides=2)(x)
     
     x = dense_block(x, 6, growth_rate, 4, activation)
