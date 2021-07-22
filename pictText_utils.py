@@ -7,7 +7,7 @@ import datetime
 from Pipeline.Core import Dataset as PDS
 from Pipeline.DatasetProcessor import Transformers
 from Pipeline.DatasetProcessor.Transformers.Utils import RenderingUtils
-from Pipeline.DatasetProcessor.Transformers.Utils.IDUtils import WordIdOnlyText as wordId
+from Pipeline.DatasetProcessor.Transformers.Utils.IDUtils import TextWordId as wordId
 
 class Generator(object):
     def __init__(self, data_path, padding=0):
