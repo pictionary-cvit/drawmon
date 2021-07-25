@@ -5,18 +5,30 @@ import glob
 import datetime
 import tensorflow as tf
 
-from pictText_utils import Generator
-
+from .pictText_utils import Generator
 
 
 class InputGenerator(object):
     """Model input generator for data augmentation."""
+
     # TODO
     # flag to protect bounding boxes from cropping?
     # crop range > 1.0? crop_area_range=[0.75, 1.25]
-    
-    def __init__(self, dataset, prior_util, batch_size, batch_processes, split='train', img_width=512, img_height=512, encode=True, overlap_threshold=0.5, num_classes=2):
-        
+
+    def __init__(
+        self,
+        dataset,
+        prior_util,
+        batch_size,
+        batch_processes,
+        split="train",
+        img_width=512,
+        img_height=512,
+        encode=True,
+        overlap_threshold=0.5,
+        num_classes=2,
+    ):
+
         self.dataset = dataset
         self.batch_size = batch_size
         self.batch_processes = batch_processes
@@ -26,39 +38,50 @@ class InputGenerator(object):
         self.split = split
         self.encode = encode
         self.overlap_threshold = overlap_threshold
-        self.num_classes=num_classes
-    
+        self.num_classes = num_classes
+
     def stackBatch(self, batch):
         imgs, boxes = list(zip(*batch))
 
-        imgs = [np.reshape(img.astype(np.float32), (img.shape[0], img.shape[1], 1)) for img in imgs]
+        imgs = [
+            np.reshape(img.astype(np.float32), (img.shape[0], img.shape[1], 1))
+            for img in imgs
+        ]
 
         targets = []
         for target in boxes:
-            target = np.array(target, dtype='float32')
-            target[:,:,0] = target[:,:,0]/self.img_width
-            target[:,:,1] = target[:,:,1]/self.img_height
+            target = np.array(target, dtype="float32")
+            target[:, :, 0] = target[:, :, 0] / self.img_width
+            target[:, :, 1] = target[:, :, 1] / self.img_height
             target = target.reshape(target.shape[0], -1)
-            
+
             # append class 1 => text class
-            target = np.concatenate([target, np.ones([target.shape[0],1])], axis=1)
-            
+            target = np.concatenate([target, np.ones([target.shape[0], 1])], axis=1)
+
             if self.encode:
-                target = self.prior_util.encode(target, overlap_threshold=self.overlap_threshold, num_classes=self.num_classes)
-                
+                target = self.prior_util.encode(
+                    target,
+                    overlap_threshold=self.overlap_threshold,
+                    num_classes=self.num_classes,
+                )
+
             targets.append(target)
 
-        return np.array(imgs, dtype='float32'), np.array(targets, dtype='float32')    
+        return np.array(imgs, dtype="float32"), np.array(targets, dtype="float32")
 
-    
     def get_dataset(self):
-        if (self.split == 'train'):
-            ds = self.dataset.shuffle().batch(self.batch_size, self.batch_processes).map(self.stackBatch)
+        if self.split == "train":
+            ds = (
+                self.dataset.shuffle()
+                .batch(self.batch_size, self.batch_processes)
+                .map(self.stackBatch)
+            )
         else:
-            ds = self.dataset.batch(self.batch_size, self.batch_processes).map(self.stackBatch)
-        
-        return ds
+            ds = self.dataset.batch(self.batch_size, self.batch_processes).map(
+                self.stackBatch
+            )
 
+        return ds
 
 
 # data_path = "/home/nikhil.bansal/pictionary_redux/pictionary_redux/dataset/obj_detection_data"
