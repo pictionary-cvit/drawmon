@@ -5,6 +5,10 @@ plots/*
 uploads/*
 images/*
 
+# custom file
+saved_datasets/*
+saved_models/*
+convert_dataset2tfds.py
 
 *.sh
 *.out
