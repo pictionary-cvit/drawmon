@@ -111,7 +111,11 @@ class PriorUtil(SSDPriorUtil):
             # boxes, rboxes, confs scores, labels (Note: scores Not probability)
             # 4,5,1,1
         '''
-        
+        try:
+            model_output = model_output.numpy()
+        except:
+            pass        
+
         if self.isQuads and self.isRbb:
             prior_mask = model_output[:,17:] > confidence_threshold
         elif self.isRbb:
@@ -124,9 +128,15 @@ class PriorUtil(SSDPriorUtil):
         
         if sparse:
             # compute boxes only if the confidence is high enough and the class is not background
+            print(f"model_output.shape: {model_output.shape, model_output.dtype}")
+            print(f"prior_mask.shape: {prior_mask.shape, prior_mask.dtype}")
             mask = np.any(prior_mask[:,1:], axis=1)
+            print(f"mask.shape: {mask.shape, mask.dtype}")
             prior_mask = prior_mask[mask]
+            print(f"prior_mask.shape: {prior_mask.shape, prior_mask.dtype}")
             mask = np.ix_(mask)[0]
+            print(f"mask.shape: {mask.shape, mask.dtype}")
+            mask = list(mask.astype(int))
             model_output = model_output[mask]
             priors_xy = self.priors_xy[mask] / self.image_size
             priors_wh = self.priors_wh[mask] / self.image_size

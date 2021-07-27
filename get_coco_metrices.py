@@ -1,13 +1,13 @@
 import numpy as np
 import os
+from tensorflow.python.framework.tensor_util import constant_value
 from tqdm import tqdm
 
 from tbpp_model import TBPP512, TBPP512_dense, TBPP512_dense_separable
-from ssd_data import InputGenerator
 
 
 from pictText_utils import Generator
-from data_pictText import InputGenerator
+from data_pictText import InputGenerator, ImageInputGenerator
 
 from tbpp_utils import PriorUtil
 
@@ -19,16 +19,19 @@ import glob
 
 from cocoevals import PycocoMetric
 
+import matplotlib.pyplot as plt
+import cv2
+
 # Get Argument
 data_path = "/home/nikhil.bansal/pictionary_redux/pictionary_redux/dataset/obj_detection_data"
-batch_size = 6
+batch_size = 16
 confidence_threshold = 0.4
 scale = 0.9
 isQuads = 'False'
 isRbb='False'
 
 num_dense_segs=3 # default = 3
-use_prev_feature_map='True' # default = True
+use_prev_feature_map='False' # default = False
 num_multi_scale_maps=5 # default = 5
 num_classes=1 + 1 # default = 2
 model_name = "ds"
@@ -36,7 +39,7 @@ weights_path = None
 data_split='val'
 
 onlyLastwt='False'
-
+activation='relu'
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--data', type=str, required=False, default=data_path)
@@ -52,17 +55,18 @@ parser.add_argument('--isPMap', type=eval,
                       choices=[True, False], required=False, default=use_prev_feature_map)
 parser.add_argument('--nmsm', type=int, required=False, default=num_multi_scale_maps)
 parser.add_argument('--nc', type=int, required=False, default=num_classes)
-parser.add_argument('--model', type=str, choices=['std', 'ds', 'dsod'], required=False, default=model_name)
-parser.add_argument('--split', type=str, choices=['val', 'test'], required=False, default=data_split)
+parser.add_argument('--model', type=str, choices=['tbpp', 'ds', 'dsod'], required=False, default=model_name)
+parser.add_argument('--split', type=str, choices=['val', 'test', 'train', "**"], required=False, default=data_split)
 parser.add_argument('--wpath', type=str, required=True, default=None)
 
-parser.add_argument('--onlyLastwt', type=eval, required=False, default=onlyLastwt)
-
+parser.add_argument('--onlyLastwt', type=eval, choices=[True, False], required=False, default=onlyLastwt)
+parser.add_argument('--activation', type=str, required=False, default='relu')
 
 args = parser.parse_args()
 print(args)
 
 data_path = args.data
+
 
 batch_size = args.bs
 confidence_threshold = args.ct
@@ -73,6 +77,7 @@ isRbb=args.isR
 num_dense_segs=args.nds # default = 3
 use_prev_feature_map=args.isPMap # default = True
 num_multi_scale_maps=args.nmsm # default = 5
+activation = args.activation
 num_classes=args.nc # default = 1 + 1 (bg + text)
 weights_path=args.wpath
 data_split=args.split
@@ -82,16 +87,14 @@ only_last = args.onlyLastwt
 model_name=args.model
 
 if model_name == 'ds':
-    model = TBPP512_dense_separable(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes)
+    model = TBPP512_dense_separable(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes, activation=activation)
 elif model_name == 'dsod':
     model = TBPP512_dense(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_classes=num_classes)
-elif model_name == 'std':
+elif model_name == 'tbpp':
     model = TBPP512(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_classes=num_classes)
 else:
     sys.exit('Model Not Supported\nChoices: [ds, dsod]')
 
-gen = Generator(data_path, padding=0)
-ds_val = gen.getDS(data_split, augmented="**", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=2)
 
 prior_util = PriorUtil(model)
 priors_xy = tf.Variable(prior_util.priors_xy/prior_util.image_size, dtype=tf.float32)
@@ -99,19 +102,16 @@ priors_wh = tf.Variable(prior_util.priors_wh/prior_util.image_size, dtype=tf.flo
 priors_variances = tf.Variable(prior_util.priors_variances, dtype=tf.float32)
 
 
-gen_val = InputGenerator(ds_val, prior_util, batch_size, 2, encode=True, overlap_threshold=0.5)
-# gen_val_decoded = InputGenerator(ds_val, prior_util, batch_size, 2, encode=False)
+gen_val = ImageInputGenerator(data_path, batch_size, 'val')
 
-iterator_val = gen_val.get_dataset()
-# iterator_val_decoded = gen_val_decoded.get_dataset()
-# print(len(iterator_val_decoded))
-print(f"Number of validation batches: {len(iterator_val)}")
+dataset_val = gen_val.get_dataset()
+print(f"Number of validation batches: {len(dataset_val)}")
 
 
 
 pycoco_metric = PycocoMetric(iou_threshold = 0.5,
                              confidence_threshold = 0.3, 
-                             top_k = 200)
+                             top_k = 200, num_classes=num_classes)
 
 def get_AP(y_true, y_pred):
     coco_metrics = pycoco_metric(y_true, y_pred)
@@ -122,63 +122,153 @@ y_true = []
 y_pred = []
 
 
-
+classes = ["bg", "text", "number", "symbol", "circle"]
 checkdir = f'{weights_path}/cocometrics'
-val_summary_writer = tf.summary.create_file_writer(checkdir)
 
 if weights_path[-1] != '/':
     weight_files = glob.glob(f'{weights_path}/*.h5')
 else:
     weight_files = glob.glob(f'{weights_path}*.h5')
 weight_files.sort()
-best_metrics=None
-best_epoch=0
 
 if only_last == True:
     weight_files = [weight_files[-1]]
-elif type(only_last) is not bool:
-    weight_files = [weight_files[only_last-1]]
-    #weight_files = weight_files[only_last-1:]
 
-for fp in tqdm(range(len(weight_files))):
-    filepath = weight_files[fp]
-    model.load_weights(filepath)
 
-    for ii, (images, data) in enumerate(iterator_val):
-        preds = model.predict(images, batch_size=batch_size, verbose=1)        
-        for i in range(len(preds)):
-            res = prior_util.decode(preds[i], confidence_threshold, fast_nms=False)
-            truths = prior_util.decode(data[i], confidence_threshold, fast_nms=False)
-
-            y_true.append(truths)
-            y_pred.append(res)
-            
-    with val_summary_writer.as_default():
-    #if True:    
-        metrics = get_AP(y_true, y_pred)
-        label = 'Average Precision (AP) @[ IoU=0.50 | area= all | maxDets=100 ]'
-        cur_label_value = None
-        tf.summary.scalar('mAP@0.5', metrics[1][1], step=fp+1)
-        tf.summary.scalar('mAR@0.5', metrics[7][1], step=fp+1)
-        tf.summary.scalar('F1', 2*(metrics[1][1])*(metrics[7][1])/(metrics[1][1]+metrics[7][1]), step=fp+1)
-        #print()
-        for metric, metric_value in metrics:
-            if (str(metric) == label):
-                cur_label_value = metric_value
-            tf.summary.scalar(str(metric), metric_value, step=fp+1)
+def renderPreds(imgs, preds, truths=None, only_img = False):   
+    rends = []
+    for i in range(imgs.shape[0]):
+        fig = plt.figure(figsize=[9]*2)
+        im = np.pad(np.reshape(imgs[i], (imgs[i].shape[0], imgs[i].shape[1])), pad_width=(15), constant_values=(0))
+        print(im.shape)
+        plt.imshow(1-im, cmap='gray')
         
-        if best_metrics == None:
-            best_metrics = metrics
-            best_epoch = fp + 1
-        else:
-            for metric, metric_value in best_metrics:
-                if (str(metric) == label):
-                    if (cur_label_value > metric_value):
-                        best_metrics = metrics
-                        best_epoch = fp + 1
-                        break
-                    else:
-                        break
+        if not only_img:
+            res = preds[i]
+            res_truth = truths[i]
+            # prior_util.plot_gt()
+            # TextWordId, MultiNumberId, SymbolId, CircleId
+            # prior_util.plot_results(res, gt_data_decoded=res_truth, show_labels=True, classes=classes)
+            prior_util.plot_results(res, show_labels=False, classes=classes, hw = (imgs[i].shape[0], imgs[i].shape[1]), pad=15)
 
-print(f'Best Epoch: {best_epoch}')
-print(best_metrics)
+        plt.axis('off')
+        fig.canvas.draw()
+
+        # Now we can save it to a numpy array.
+        data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        rends.append(data)
+
+        plt.close('all')
+    
+    return np.array(rends)
+
+def lprint(s):
+    with open(f"{weights_path}/results/{data_split}/result_log.txt", "a") as fil:
+        fil.write(s)
+        fil.write('\n')
+    
+
+def evaluate(class_idx = -1):
+    if class_idx == -1:
+        class_name = "all"
+    else: 
+        class_name = classes[class_idx]
+
+    os.makedirs(f"{checkdir}/tb/{class_idx}", exist_ok=True)
+    val_summary_writer = tf.summary.create_file_writer(f"{checkdir}/tb/{class_idx}")
+    best_metrics=None
+    best_epoch=0
+
+    imgs = []
+    y_true = []
+    y_pred = []
+    sample_count = 0
+    detection_accuracy = 0
+    tp = 0
+    fp = 0
+    tn = 0
+    fn = 0
+
+    for filep in tqdm(range(len(weight_files))):
+        # print(weight_files)
+        filepath = weight_files[filep]
+        model.load_weights(filepath)
+            
+        for ii, (images, data) in enumerate(dataset_val):
+            print(f"Input Size: {images.shape}")
+            print(f"Output Size: {data.shape}")
+            preds = model.predict_on_batch(images)
+            print(f"Prediction Size: {preds.shape}")
+            for i in range(len(preds)):
+                res = prior_util.decode(preds[i], class_idx = class_idx, confidence_threshold = confidence_threshold, fast_nms=False)
+                truths = prior_util.decode(data[i], class_idx = class_idx, confidence_threshold = confidence_threshold, fast_nms=False)
+
+                if (len(truths) == 0 and len(res) == 0) or (len(truths) != 0 and len(res) != 0):
+                    detection_accuracy += 1
+                if (len(truths) == 0 and len(res) == 0):
+                    tn += 1
+                if (len(truths) == 0 and len(res) != 0):
+                    fp += 1
+                if (len(truths) != 0 and len(res) == 0):
+                    fn += 1
+                if (len(truths) != 0 and len(res) != 0):
+                    tp += 1
+                    
+                render = renderPreds(np.array([images[i]]), np.array([res]), np.array([truths]))
+                dirpath = f"{weights_path}/results/{data_split}/{weight_files[filep].split('/')[-1]}_{class_idx}"
+
+                os.makedirs(dirpath, exist_ok=True)
+                filename = f"{dirpath}/{sample_count}.png"
+            
+                cv2.imwrite(filename, render[0])
+
+                sample_count += 1
+                imgs.append(images[i])
+                y_true.append(truths)
+                y_pred.append(res)
+        
+            
+        with val_summary_writer.as_default():
+            metrics = get_AP(y_true, y_pred)
+            label = f'Average Precision (AP) @[ IoU=0.50 | area= all | maxDets=100 ]'
+            cur_label_value = None
+            for metric, metric_value in metrics:
+                if (str(metric) == label):
+                    cur_label_value = metric_value
+                tf.summary.scalar(str(metric), metric_value, step=filep+1)
+            
+            if best_metrics == None:
+                best_metrics = metrics
+                best_epoch = filep + 1
+            else:
+                for metric, metric_value in best_metrics:
+                    if (str(metric) == label):
+                        if (cur_label_value > metric_value):
+                            best_metrics = metrics
+                            best_epoch = filep + 1
+                        break
+    
+    def f1(p,r):
+        return 2*p*r/(p+r) if p+r != 0 else 0
+
+    p = tp/(tp + fp)
+    r = tp/(tp + fn)
+    acc = detection_accuracy/sample_count
+
+    lprint(f'class {class_name}: Detection: acc = {acc}, p = {p}, r = {r}, f1 = {f1(p, r)}')
+    lprint(f'class {class_name}: Detection: acc = {round(acc, 2)}, p = {round(p, 2)}, r = {round(r, 2)}, f1 = {round(f1(p,r), 2)}')
+    lprint(f'class {class_name}: Best Epoch: {best_epoch}')
+    lprint(f'class {class_name}: Best Metrics: {best_metrics}')
+
+    ap = best_metrics[1][1]
+    ar = best_metrics[7][1]
+    
+    lprint(f'class {class_name}: ap = {ap}, ar = {ar}, f1 = {f1(ap,ar)}')
+    lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ')
+
+# for class_idx in range(1,num_classes,1):
+#     evaluate(class_idx)
+# evaluate(1)
+evaluate(-1)
+

@@ -110,7 +110,7 @@ class Generator(object):
 
         idFns = [TextWordId, MultiNumberId, SymbolId, CircleId]
 
-	if num_classes=2:
+        if num_classes == 2:
 
             ds_bbox = ds\
             .map(Transformers.AbsPointsToOBBCallable(TextWordId, max_erase_percentage=max_erase_percentage, num_workers=num_workers))\
