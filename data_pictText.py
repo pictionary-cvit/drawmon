@@ -60,6 +60,35 @@ class InputGenerator(object):
         return ds
 
 
+class ImageInputGenerator(object):
+    """Model input generator with images i.e without using memcache"""
+
+    def __init__(self, data_path, batch_size, dataset='train'):
+        self.data_path = os.path.join(data_path, dataset)
+        self.batch_size = batch_size
+        self.dataset = dataset
+        self.num_samples = len(glob.glob1(self.data_path, "*.png"))
+
+    
+    def get_sample(self, idx):
+        img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
+        y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
+        
+        return img, y
+    
+    def get_dataset(self, num_parallel_calls=1, seed=1337):
+        import tensorflow as tf
+       
+        print(f"Number of {self.dataset} samples at '{self.data_path}': {self.num_samples}")
+ 
+        if seed is not None:
+            np.random.seed(seed)
+        
+        ds = tf.data.Dataset.range(self.num_samples).repeat(1).shuffle(self.num_samples)
+        ds = ds.map(lambda x: tf.py_function(self.get_sample, [x,], ['float32', 'float32']), num_parallel_calls=num_parallel_calls, deterministic=False)
+        ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+        
+        return ds
 
 # data_path = "/home/nikhil.bansal/pictionary_redux/pictionary_redux/dataset/obj_detection_data"
 # gen = Generator(data_path)

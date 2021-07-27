@@ -17,6 +17,7 @@ from tbpp_training import TBPPFocalLoss
 
 from pictText_utils import Generator
 from data_pictText import InputGenerator
+from data_pictText import ImageInputGenerator
 
 # from utils.model import load_weights
 from utils.training import MetricUtility
@@ -123,10 +124,16 @@ is_gpu = len(tf.config.list_physical_devices('GPU')) > 0
 is_gpu
 
 
-
+mirrored_strategy = tf.distribute.MirroredStrategy()
 
 # TextBoxes++
-model = TBPP512_dense_separable(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes, activation=activation)
+with mirrored_strategy.scope():
+    model = TBPP512_dense_separable(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes, activation=activation)
+
+    # optimizer = keras.optimizers.SGD(lr=1e-3, momentum=0.9, decay=0, nesterov=True)
+    optimizer = keras.optimizers.Adam(lr=1e-3, beta_1=0.9, beta_2=0.999, epsilon=0.001, decay=0.0)
+
+
 model.num_classes = num_classes
 freeze = []
 '''
@@ -198,9 +205,6 @@ def renderPreds(imgs, preds, truths=None):
 epochs = 100
 initial_epoch = 0
 
-#optimizer = keras.optimizers.SGD(lr=1e-3, momentum=0.9, decay=0, nesterov=True)
-optimizer = keras.optimizers.Adam(lr=1e-3, beta_1=0.9, beta_2=0.999, epsilon=0.001, decay=0.0)
-
 
 priors_xy = tf.Variable(prior_util.priors_xy/prior_util.image_size, dtype=tf.float32)
 priors_wh = tf.Variable(prior_util.priors_wh/prior_util.image_size, dtype=tf.float32)
@@ -209,18 +213,20 @@ priors_variances = tf.Variable(prior_util.priors_variances, dtype=tf.float32)
 
 loss = TBPPFocalLoss(lambda_conf=lambda_conf, lambda_offsets=lambda_offsets, isQuads=isQuads, isRbb=isRbb, aabb_weight=aabb_weight, rbb_weight=rbb_weight, decay_factor = decay_factor, priors_xy=priors_xy, priors_wh=priors_wh, priors_variances=priors_variances, aabb_diou=aabb_diou, rbb_diou=rbb_diou, isfl=isfl, neg_pos_ratio=neg_pos_ratio)
 
-#regularizer = None
+# regularizer = None
 regularizer = keras.regularizers.l2(5e-4) # None if disabled
 
-gen = Generator(data_path, padding=0)
-ds_train = gen.getDS("train", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=10)
-ds_val = gen.getDS("val", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=10)
 
-gen_train = InputGenerator(ds_train, prior_util, batch_size, 5, num_classes=num_classes)
-gen_val = InputGenerator(ds_val, prior_util, batch_size, 5, num_classes=num_classes)
+gen_train = ImageInputGenerator(data_path, batch_size, 'train')
+gen_val = ImageInputGenerator(data_path, batch_size, 'val')
 
-iterator_train = gen_train.get_dataset()
-iterator_val = gen_val.get_dataset()
+dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
+
+dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
+dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val)
+
+# iterator_train = iter(dataset_train)
+# iterator_val = iter(dataset_val)
 
 
 if not os.path.exists(checkdir):
@@ -252,15 +258,17 @@ for l in model.layers:
     if regularizer and l.__class__.__name__.startswith('Conv'):
         model.add_loss(lambda l=l: regularizer(l.kernel))
 
-metric_util = MetricUtility(loss.metric_names, logdir=checkdir)
-
 iteration = 0
 
 # @tf.function
-def step(x, y_true, training=False):
+def step(inputs, training=True):
+    x, y_true = inputs
     if training:
         with tf.GradientTape() as tape:
             y_pred = model(x, training=True)
+            print(f"Input shape: {x.shape}")
+            print(f"GT Shape: {y_true.shape}")
+            print(f"Pred Shape: {y_pred.shape}")
             metric_values = loss.compute(y_true, y_pred)
             total_loss = metric_values['loss']
             if len(model.losses):
@@ -270,111 +278,45 @@ def step(x, y_true, training=False):
     else:
         y_pred = model(x, training=True)
         metric_values = loss.compute(y_true, y_pred)
-    return metric_values
+        total_loss = metric_values['loss']
+        if len(model.losses):
+            total_loss += tf.add_n(model.losses)
+    return total_loss
+
+@tf.function
+def distributed_train_step(dist_inputs):
+    per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, True,))
+    return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
+                         axis=None)
+
+@tf.function
+def distributed_val_step(dist_inputs):
+    per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, False,))
+    return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
+                         axis=None)
 
 for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
     print('\nepoch %i/%i' % (k+1, epochs))
-    metric_util.on_epoch_begin()
 
-    for i, train_sample in enumerate(iterator_train):
-        try:
-            x, y_true = train_sample
-        except:
-            print("Skipping Sample: ", i)
-            continue
-        print(x.shape)
-        metric_values = step(x, y_true, training=True)
-        metric_util.update(metric_values, training=True)
+    for dist_inputs in dist_dataset_train:
+        batch_loss = distributed_train_step(dist_inputs)
         
         with train_summary_writer.as_default():
-            for metric in metric_values:
-                tf.summary.scalar(str(metric), metric_values[metric], step=iteration)
+            tf.summary.scalar('loss', batch_loss, step=iteration)
         iteration += 1
         
     
     model.save_weights(checkdir+'/weights.%03i.h5' % (k+1,))
-
-    val_loss = None
+   
     num_val_batches = 0
-    
-    min_val_loss = None
-    best_batch_images = None
-    best_batch_gt = None
-    best_batch_preds = None
-    
-    max_val_loss = None
-    worst_batch_images = None
-    worst_batch_gt = None
-    worst_batch_preds = None
-    
-    first_val_loss = None
-    first_batch_images = None                               
-    first_batch_gt = None                                   
-    first_batch_preds = None
-    
-    for i, val_sample in enumerate(iterator_val):
-        try:
-            x, y_true = val_sample
-        except:
-            print("Skipping val Sample: ", i)
-            continue
-
-        metric_values = step(x, y_true, training=False)
-        if not val_loss:
-            val_loss = metric_values
-        else:
-            for key in val_loss:
-                val_loss[key] += metric_values[key]
-        
-        if not min_val_loss:
-            min_val_loss = metric_values['loss']
-            best_batch_images = x
-            best_batch_gt = y_true
-            best_batch_preds = model.predict(x, batch_size=batch_size, verbose=1)
-        else:
-            if min_val_loss > metric_values['loss']:
-                min_val_loss = metric_values['loss']
-                best_batch_images = x
-                best_batch_gt = y_true
-                best_batch_preds = model.predict(x, batch_size=batch_size, verbose=1)
-        
-        if not first_val_loss:                                
-            first_val_loss = metric_values['loss']            
-            first_batch_images = x                          
-            first_batch_gt = y_true                         
-            first_batch_preds = model.predict(x, batch_size=batch_size, verbose=1)
-
-
-        if not max_val_loss:
-            max_val_loss = metric_values['loss']
-            worst_batch_images = x
-            worst_batch_gt = y_true
-            worst_batch_preds = model.predict(x, batch_size=batch_size, verbose=1)
-        else:
-            if max_val_loss < metric_values['loss']:
-                max_val_loss = metric_values['loss']
-                worst_batch_images = x
-                worst_batch_gt = y_true
-                worst_batch_preds = model.predict(x, batch_size=batch_size, verbose=1)
-                
-        
+    val_loss = 0.0
+    for dist_inputs in dist_dataset_val:
+        batch_loss = distributed_val_step(dist_inputs)
+        val_loss += batch_loss
         num_val_batches += 1
-        metric_util.update(metric_values, training=False)
-        
-    
     with val_summary_writer.as_default():
-        for metric in val_loss:
-            tf.summary.scalar(str(metric), val_loss[metric]/num_val_batches, step=iteration)
-        
-        first_renders = renderPreds(first_batch_images, first_batch_preds, first_batch_gt)
-        best_renders = renderPreds(best_batch_images, best_batch_preds, best_batch_gt)
-        worst_renders = renderPreds(worst_batch_images, worst_batch_preds, worst_batch_gt)
-        
-        tf.summary.image(f"first_val_images", first_renders, step=iteration)
-        tf.summary.image(f"best_val_images", best_renders, step=iteration)
-        tf.summary.image(f"worst_val_images", worst_renders, step=iteration)
+        tf.summary.scalar('loss', val_loss/num_val_batches, step=iteration) 
 
-    metric_util.on_epoch_end(verbose=1)
 
 
 # In[ ]:
