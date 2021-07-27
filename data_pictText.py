@@ -29,19 +29,28 @@ class InputGenerator(object):
         self.num_classes=num_classes
     
     def stackBatch(self, batch):
-        imgs, boxes = list(zip(*batch))
+        if self.num_classes == 2:
+            imgs, boxes = list(zip(*batch))
+        else:
+            # multiclass
+            imgs, box_datas = list(zip(*batch))
+            boxes, anomaly_classes = list(zip(*box_datas))
 
         imgs = [np.reshape(img.astype(np.float32), (img.shape[0], img.shape[1], 1)) for img in imgs]
 
         targets = []
-        for target in boxes:
+        for idx, target in enumerate(boxes):
             target = np.array(target, dtype='float32')
             target[:,:,0] = target[:,:,0]/self.img_width
             target[:,:,1] = target[:,:,1]/self.img_height
             target = target.reshape(target.shape[0], -1)
             
             # append class 1 => text class
-            target = np.concatenate([target, np.ones([target.shape[0],1])], axis=1)
+            if self.num_classes == 2:
+                target = np.concatenate([target, np.ones([target.shape[0],1])], axis=1)
+            else:
+                # multiclass
+                target = np.concatenate([target, np.array(anomaly_classes[idx])[:, None]], axis=1)
             
             if self.encode:
                 target = self.prior_util.encode(target, overlap_threshold=self.overlap_threshold, num_classes=self.num_classes)

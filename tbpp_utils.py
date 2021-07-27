@@ -101,7 +101,7 @@ class PriorUtil(SSDPriorUtil):
         else:
             return np.concatenate([offsets, confidence], axis=1)
         
-    def decode(self, model_output, confidence_threshold=0.01, keep_top_k=200, fast_nms=True, sparse=True, quads=False):
+    def decode(self, model_output, confidence_threshold=0.01, keep_top_k=200, fast_nms=True, sparse=True, quads=False, class_idx = -1):
         '''
         # calculation is done with normalized sizes
         INPUT:    
@@ -172,7 +172,12 @@ class PriorUtil(SSDPriorUtil):
         
         # do non maximum suppression
         results = []
-        for c in range(1, num_classes): # No bg class
+        if class_idx == -1:
+            class_iter = range(1, num_classes)
+        else:
+            class_iter = [class_idx]
+
+        for c in class_iter: # No bg class
             mask = prior_mask[:,c]
             boxes_to_process = boxes[mask]
             if len(boxes_to_process) > 0:
@@ -228,7 +233,7 @@ class PriorUtil(SSDPriorUtil):
         return results
 
 
-    def plot_results(self, results=None, classes=None, show_labels=False, gt_data=None, gt_data_decoded=None, confidence_threshold=None, quads=False):
+    def plot_results(self, results=None, classes=None, show_labels=False, gt_data=None, gt_data_decoded=None, confidence_threshold=None, quads=False, hw = None, pad=0):
         if results is None:
             results = self.results
         if confidence_threshold is not None and results is not None and len(results) > 0:
@@ -247,7 +252,10 @@ class PriorUtil(SSDPriorUtil):
             colors = plt.cm.hsv(np.linspace(0, 1, len(classes)+1)).tolist()
         ax = plt.gca()
         im = plt.gci()
-        h, w = im.get_size()
+        if hw is None:
+            h, w = im.get_size()
+        else:
+            h, w = hw
 
         # draw ground truth
         if gt_data is not None:
@@ -255,7 +263,7 @@ class PriorUtil(SSDPriorUtil):
                 label = np.nonzero(box[4:])[0][0]+1
                 color = 'g' if classes == None else colors[label]
                 xy = np.reshape(box[:8], (-1,2)) * (w,h)
-                ax.add_patch(plt.Polygon(xy, fill=True, color=color, linewidth=1, alpha=0.3))
+                ax.add_patch(plt.Polygon(xy, fill=True, color=color, linewidth=3, alpha=0.3))
         
         if gt_data_decoded is not None:
             for r in gt_data_decoded:
@@ -285,7 +293,7 @@ class PriorUtil(SSDPriorUtil):
                 confidence = r[4]
                 label = int(r[5])
 
-            plot_box(bbox*(w,h,w,h), box_format='xyxy', color='b')
+            plot_box(bbox*(w,h,w,h)+pad, box_format='xyxy', color=colors[label])
             if self.isQuads:
                 plot_box(np.reshape(quad,(-1,2))*(w,h), box_format='polygon', color='r')
             

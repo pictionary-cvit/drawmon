@@ -13,12 +13,14 @@ import tensorflow.keras.backend as K
 
 class TBPPFocalLoss(object):
 
-    def __init__(self, lambda_conf=1000.0, lambda_offsets=1.0, isQuads=False, isRbb=True, aabb_weight = 1., rbb_weight = 1., quad_weight = 1., decay_factor = 10., priors_xy=None, priors_wh=None, priors_variances=None, img_wd=512.0, img_ht=512.0, aabb_diou=True, rbb_diou=True, isfl=True, neg_pos_ratio=3.0):
+    def __init__(self, lambda_conf=1000.0, lambda_offsets=1.0, isQuads=False, isRbb=True, aabb_weight = 1., rbb_weight = 1., quad_weight = 1., decay_factor = 10., priors_xy=None, priors_wh=None, priors_variances=None, img_wd=512.0, img_ht=512.0, aabb_diou=True, rbb_diou=True, isfl=True, neg_pos_ratio=3.0, alpha=[0.002, 0.998]):
         self.lambda_conf = lambda_conf
         self.lambda_offsets = lambda_offsets
         self.isQuads = isQuads
         self.isRbb = isRbb
         
+        self.alpha = alpha
+
         self.quad_weight = 0. if not self.isQuads else quad_weight
         self.aabb_weight = aabb_weight
         self.rbb_weight = rbb_weight
@@ -191,7 +193,7 @@ class TBPPFocalLoss(object):
         
         if self.isfl:
             print("Evaluating focal-loss......")
-            conf_loss = focal_loss(conf_true, conf_pred, alpha=[0.002, 0.998])
+            conf_loss = focal_loss(conf_true, conf_pred, alpha=self.alpha)
             conf_loss = tf.reduce_sum(conf_loss)
             conf_loss = conf_loss / (num_total + eps)
         else:

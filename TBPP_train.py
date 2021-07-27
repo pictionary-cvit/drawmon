@@ -123,6 +123,9 @@ tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices('GPU')) > 0 
 is_gpu
 
+fl_alpha = [0.002, 0.998]
+if num_classes == 5:
+    fl_alpha=[0.002, 0.11721553, 0.28019262, 0.27949907, 0.32109278]
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
@@ -211,7 +214,7 @@ priors_wh = tf.Variable(prior_util.priors_wh/prior_util.image_size, dtype=tf.flo
 priors_variances = tf.Variable(prior_util.priors_variances, dtype=tf.float32)
 
 
-loss = TBPPFocalLoss(lambda_conf=lambda_conf, lambda_offsets=lambda_offsets, isQuads=isQuads, isRbb=isRbb, aabb_weight=aabb_weight, rbb_weight=rbb_weight, decay_factor = decay_factor, priors_xy=priors_xy, priors_wh=priors_wh, priors_variances=priors_variances, aabb_diou=aabb_diou, rbb_diou=rbb_diou, isfl=isfl, neg_pos_ratio=neg_pos_ratio)
+loss = TBPPFocalLoss(lambda_conf=lambda_conf, lambda_offsets=lambda_offsets, isQuads=isQuads, isRbb=isRbb, aabb_weight=aabb_weight, rbb_weight=rbb_weight, decay_factor = decay_factor, priors_xy=priors_xy, priors_wh=priors_wh, priors_variances=priors_variances, aabb_diou=aabb_diou, rbb_diou=rbb_diou, isfl=isfl, neg_pos_ratio=neg_pos_ratio, alpha=fl_alpha)
 
 # regularizer = None
 regularizer = keras.regularizers.l2(5e-4) # None if disabled

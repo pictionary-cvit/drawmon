@@ -7,7 +7,9 @@ import datetime
 from Pipeline.Core import Dataset as PDS
 from Pipeline.DatasetProcessor import Transformers
 from Pipeline.DatasetProcessor.Transformers.Utils import RenderingUtils
-from Pipeline.DatasetProcessor.Transformers.Utils.IDUtils import TextWordId as wordId
+from Pipeline.DatasetProcessor.Transformers.Utils.IDUtils import TextWordId
+
+from Pipeline.Utils.IDUtils import CircleId, MultiNumberId, SymbolId, CharacterId
 
 class Generator(object):
     def __init__(self, data_path, padding=0):
@@ -27,7 +29,7 @@ class Generator(object):
         final_sketch = []
         final_metadata = []
         for i, curve in enumerate(sketch):
-            if wordId(metadata[i]) != -1:
+            if TextWordId(metadata[i]) != -1:
                 final_sketch.append(curve)
                 final_metadata.append(metadata[i])
 
@@ -88,9 +90,12 @@ class Generator(object):
     def shiftbox(self, bboxes):
         return [(np.array(bbox) + self.padding).tolist() for bbox in bboxes]
     
+    def getClass(self, inputs):
+        bbox, metadata = inputs
+        return [item["anomaly_class"] for item in metadata]
     
 
-    def getDS(self, split="train", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=1, augmented = "**"):
+    def getDS(self, split="train", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=1, augmented = "**", num_classes=2):
         ds = PDS.ListDataset(self.getFileNames(anomaly="anomaly", split=split, augmented=augmented))\
         .map(Transformers.SvgToPointsCallable(depth=3))\
         .map(Transformers.NormaliseSketchesCallable(min_coord=0, max_coord=512-(2*self.padding)-1))\
@@ -103,12 +108,31 @@ class Generator(object):
         
         if self.padding > 0: ds_img = ds_img.map(self.pad)
 
-        ds_bbox = ds\
-        .map(Transformers.AbsPointsToOBBCallable(wordId, max_erase_percentage=max_erase_percentage, num_workers=num_workers))\
-        .map(self.stripMetadata)\
-        .map(self.convertBboxToMinMax)\
-        .map(self.startClkwiseFromTopLeft)\
-        .map(self.getOnlyObb)
+        idFns = [TextWordId, MultiNumberId, SymbolId, CircleId]
+
+	if num_classes=2:
+
+            ds_bbox = ds\
+            .map(Transformers.AbsPointsToOBBCallable(TextWordId, max_erase_percentage=max_erase_percentage, num_workers=num_workers))\
+            .map(self.stripMetadata)\
+            .map(self.convertBboxToMinMax)\
+            .map(self.startClkwiseFromTopLeft)\
+            .map(self.getOnlyObb)
+        else:
+            # multiclass
+            ds_bbox_class = ds\
+            .map(Transformers.AbsPointsToOBBCallable(idFns, max_erase_percentage=max_erase_percentage, num_workers=num_workers))\
+        
+            ds_only_bbox = ds_bbox_class\
+            .map(self.stripMetadata)\
+            .map(self.convertBboxToMinMax)\
+            .map(self.startClkwiseFromTopLeft)\
+            .map(self.getOnlyObb)
+
+            ds_only_class = ds_bbox_class\
+            .map(self.getClass)
+
+            ds_bbox = ds_only_bbox.zip(ds_only_class)
         
         if self.padding > 0: ds_bbox = ds_bbox.map(self.shiftbox)
     
