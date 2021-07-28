@@ -179,51 +179,26 @@ def evaluate(class_idx = -1):
     val_summary_writer = tf.summary.create_file_writer(f"{checkdir}/tb/{class_idx}")
     best_metrics=None
     best_epoch=0
-
-    imgs = []
-    y_true = []
-    y_pred = []
-    sample_count = 0
-    detection_accuracy = 0
-    tp = 0
-    fp = 0
-    tn = 0
-    fn = 0
+    
 
     for filep in tqdm(range(len(weight_files))):
         # print(weight_files)
         filepath = weight_files[filep]
         model.load_weights(filepath)
+        
+        imgs = []
+        y_true = []
+        y_pred = []
             
         for ii, (images, data) in enumerate(dataset_val):
-            print(f"Input Size: {images.shape}")
-            print(f"Output Size: {data.shape}")
+            # print(f"Input Size: {images.shape}")
+            # print(f"Output Size: {data.shape}")
             preds = model.predict_on_batch(images)
-            print(f"Prediction Size: {preds.shape}")
+            # print(f"Prediction Size: {preds.shape}")
             for i in range(len(preds)):
                 res = prior_util.decode(preds[i], class_idx = class_idx, confidence_threshold = confidence_threshold, fast_nms=False)
                 truths = prior_util.decode(data[i], class_idx = class_idx, confidence_threshold = confidence_threshold, fast_nms=False)
-
-                if (len(truths) == 0 and len(res) == 0) or (len(truths) != 0 and len(res) != 0):
-                    detection_accuracy += 1
-                if (len(truths) == 0 and len(res) == 0):
-                    tn += 1
-                if (len(truths) == 0 and len(res) != 0):
-                    fp += 1
-                if (len(truths) != 0 and len(res) == 0):
-                    fn += 1
-                if (len(truths) != 0 and len(res) != 0):
-                    tp += 1
                     
-                render = renderPreds(np.array([images[i]]), np.array([res]), np.array([truths]))
-                dirpath = f"{weights_path}/results/{data_split}/{weight_files[filep].split('/')[-1]}_{class_idx}"
-
-                os.makedirs(dirpath, exist_ok=True)
-                filename = f"{dirpath}/{sample_count}.png"
-            
-                cv2.imwrite(filename, render[0])
-
-                sample_count += 1
                 imgs.append(images[i])
                 y_true.append(truths)
                 y_pred.append(res)
@@ -249,26 +224,67 @@ def evaluate(class_idx = -1):
                             best_epoch = filep + 1
                         break
     
-    def f1(p,r):
-        return 2*p*r/(p+r) if p+r != 0 else 0
-
-    p = tp/(tp + fp)
-    r = tp/(tp + fn)
-    acc = detection_accuracy/sample_count
-
-    lprint(f'class {class_name}: Detection: acc = {acc}, p = {p}, r = {r}, f1 = {f1(p, r)}')
-    lprint(f'class {class_name}: Detection: acc = {round(acc, 2)}, p = {round(p, 2)}, r = {round(r, 2)}, f1 = {round(f1(p,r), 2)}')
-    lprint(f'class {class_name}: Best Epoch: {best_epoch}')
-    lprint(f'class {class_name}: Best Metrics: {best_metrics}')
-
-    ap = best_metrics[1][1]
-    ar = best_metrics[7][1]
+    def plot_best_epoch():
+        """Plot and save predictions from model having weights that gives best AP"""
+        idx = best_epoch - 1
+        filepath = weight_files[idx]
+        model.load_weights(filepath)
+        
+        sample_count = 0
+        detection_accuracy = 0
+        tp = 0
+        fp = 0
+        tn = 0
+        fn = 0
     
-    lprint(f'class {class_name}: ap = {ap}, ar = {ar}, f1 = {f1(ap,ar)}')
-    lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ')
+        for ii, (images, data) in enumerate(dataset_val):
+            preds = model.predict_on_batch(images)
+            for i in range(len(preds)):
+                res = prior_util.decode(preds[i], class_idx = class_idx, confidence_threshold = confidence_threshold, fast_nms=False)
+                truths = prior_util.decode(data[i], class_idx = class_idx, confidence_threshold = confidence_threshold, fast_nms=False)
+                
+                if (len(truths) == 0 and len(res) == 0) or (len(truths) != 0 and len(res) != 0):
+                    detection_accuracy += 1
+                if (len(truths) == 0 and len(res) == 0):
+                    tn += 1
+                if (len(truths) == 0 and len(res) != 0):
+                    fp += 1
+                if (len(truths) != 0 and len(res) == 0):
+                    fn += 1
+                if (len(truths) != 0 and len(res) != 0):
+                    tp += 1
 
-# for class_idx in range(1,num_classes,1):
-#     evaluate(class_idx)
-# evaluate(1)
-evaluate(-1)
+                render = renderPreds(np.array([images[i]]), np.array([res]), np.array([truths]))
+                dirpath = f"{weights_path}/results/{data_split}/{weight_files[filep].split('/')[-1]}_{class_idx}"
+
+                os.makedirs(dirpath, exist_ok=True)
+                filename = f"{dirpath}/{sample_count}.png"
+                sample_count += 1
+                cv2.imwrite(filename, render[0])
+        
+    
+    
+        def f1(p,r):
+            return 2*p*r/(p+r) if p+r != 0 else 0
+
+        p = tp/(tp + fp)
+        r = tp/(tp + fn)
+        acc = detection_accuracy/sample_count
+
+        lprint(f'class {class_name}: Detection: acc = {acc}, p = {p}, r = {r}, f1 = {f1(p, r)}')
+        lprint(f'class {class_name}: Detection: acc = {round(acc, 2)}, p = {round(p, 2)}, r = {round(r, 2)}, f1 = {round(f1(p,r), 2)}')
+        lprint(f'class {class_name}: Best Epoch: {best_epoch}')
+        lprint(f'class {class_name}: Best Metrics: {best_metrics}')
+
+        ap = best_metrics[1][1]
+        ar = best_metrics[7][1]
+
+        lprint(f'class {class_name}: ap = {ap}, ar = {ar}, f1 = {f1(ap,ar)}')
+        lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ')
+    
+    plot_best_epoch()
+
+for class_idx in range(1, num_classes, 1):
+    evaluate(class_idx)
+# evaluate(-1)
 
