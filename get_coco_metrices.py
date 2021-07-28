@@ -206,26 +206,22 @@ def evaluate(class_idx = -1):
             
         with val_summary_writer.as_default():
             metrics = get_AP(y_true, y_pred)
-            label = f'Average Precision (AP) @[ IoU=0.50 | area= all | maxDets=100 ]'
-            cur_label_value = None
+            # Current AP@0.50 is given by metrics[1][1]
             for metric, metric_value in metrics:
-                if (str(metric) == label):
-                    cur_label_value = metric_value
                 tf.summary.scalar(str(metric), metric_value, step=filep+1)
             
             if best_metrics == None:
                 best_metrics = metrics
                 best_epoch = filep + 1
             else:
-                for metric, metric_value in best_metrics:
-                    if (str(metric) == label):
-                        if (cur_label_value > metric_value):
-                            best_metrics = metrics
-                            best_epoch = filep + 1
-                        break
+                if (metrics[1][1] > best_metrics[1][1]):
+                    print(f"Best epoch changed from {best_epoch} to {filep+1}")
+                    best_metrics = metrics
+                    best_epoch = filep + 1
     
     def plot_best_epoch():
         """Plot and save predictions from model having weights that gives best AP"""
+        print(f"Plot epoch: {best_epoch}")
         idx = best_epoch - 1
         filepath = weight_files[idx]
         model.load_weights(filepath)
