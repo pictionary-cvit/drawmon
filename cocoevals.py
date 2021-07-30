@@ -22,7 +22,8 @@ class PycocoMetric:
              
              # boxes format: xmin, ymin, xmax, ymax
         '''
-        
+        print(f"y_true.shape: {y_true.shape}, {y_true[0].shape}")
+        print(f"y_pred.shape: {y_pred.shape}")
         dataset = {
                 'images': [],
                 'annotations': [],
@@ -69,7 +70,9 @@ class PycocoMetric:
             
             pred_img_id+=1
         detections = np.array(detections)
-        
+        detections = np.reshape(detections, (-1, 7))
+        print(f"Number of annotations in dataset: {len(dataset['annotations'])}") 
+        print(f"len of detections: {len(detections)}")
         coco_gt = COCO()
         coco_gt.dataset = dataset
         coco_gt.createIndex()

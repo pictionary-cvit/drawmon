@@ -189,6 +189,8 @@ def evaluate(class_idx = -1):
         imgs = []
         y_true = []
         y_pred = []
+
+        isAnyPredictions = False
             
         for ii, (images, data) in enumerate(dataset_val):
             # print(f"Input Size: {images.shape}")
@@ -201,23 +203,27 @@ def evaluate(class_idx = -1):
                     
                 imgs.append(images[i])
                 y_true.append(truths)
+                if (res.shape[0] != 0): isAnyPredictions = True
                 y_pred.append(res)
         
+        if (isAnyPredictions == False):
+            # No predictions for the whole val-set
+            print(f"Skipping epoch-{filep+1}, as there are no predictions in the whole val-set.")
+        else:    
+            with val_summary_writer.as_default():
+                metrics = get_AP(np.array(y_true), np.array(y_pred))
+                # Current AP@0.50 is given by metrics[1][1]
+                for metric, metric_value in metrics:
+                    tf.summary.scalar(str(metric), metric_value, step=filep+1)
             
-        with val_summary_writer.as_default():
-            metrics = get_AP(y_true, y_pred)
-            # Current AP@0.50 is given by metrics[1][1]
-            for metric, metric_value in metrics:
-                tf.summary.scalar(str(metric), metric_value, step=filep+1)
-            
-            if best_metrics == None:
-                best_metrics = metrics
-                best_epoch = filep + 1
-            else:
-                if (metrics[1][1] > best_metrics[1][1]):
-                    print(f"Best epoch changed from {best_epoch} to {filep+1}")
+                if best_metrics == None:
                     best_metrics = metrics
                     best_epoch = filep + 1
+                else:
+                    if (metrics[1][1] > best_metrics[1][1]):
+                        print(f"Best epoch changed from {best_epoch} to {filep+1}")
+                        best_metrics = metrics
+                        best_epoch = filep + 1
     
     def plot_best_epoch():
         """Plot and save predictions from model having weights that gives best AP"""
