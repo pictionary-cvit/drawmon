@@ -72,18 +72,20 @@ class InputGenerator(object):
 class ImageInputGenerator(object):
     """Model input generator with images i.e without using memcache"""
 
-    def __init__(self, data_path, batch_size, dataset='train'):
+    def __init__(self, data_path, batch_size, dataset='train', give_idx=False):
         self.data_path = os.path.join(data_path, dataset)
         self.batch_size = batch_size
         self.dataset = dataset
         self.num_samples = len(glob.glob1(self.data_path, "*.png"))
+        self.give_idx = give_idx
 
     
     def get_sample(self, idx):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
         y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
         
-        return img, y
+        if self.give_idx: return img, y, idx
+        else: return img, y
     
     def get_dataset(self, num_parallel_calls=1, seed=1337):
         import tensorflow as tf
@@ -94,16 +96,7 @@ class ImageInputGenerator(object):
             np.random.seed(seed)
         
         ds = tf.data.Dataset.range(self.num_samples).repeat(1).shuffle(self.num_samples)
-        ds = ds.map(lambda x: tf.py_function(self.get_sample, [x,], ['float32', 'float32']), num_parallel_calls=num_parallel_calls, deterministic=False)
+        ds = ds.map(lambda x: tf.py_function(self.get_sample, [x,], ['float32', 'float32', 'int32']), num_parallel_calls=num_parallel_calls, deterministic=False)
         ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
         
         return ds
-
-# data_path = "/home/nikhil.bansal/pictionary_redux/pictionary_redux/dataset/obj_detection_data"
-# gen = Generator(data_path)
-# ds = gen.getDS("train")
-# loader = InputGenerator(ds, 8, 5)
-# ds = loader.get_dataset()
-# for (image, labels) in ds:
-#     print (image, labels)
-#     break
