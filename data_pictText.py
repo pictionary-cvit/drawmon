@@ -104,3 +104,47 @@ class ImageInputGenerator(object):
         ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
         
         return ds
+
+    
+    
+class ImageInputGeneratorWithResampling(object):
+    """
+    Model input generator with more weights to hard examples
+    """
+    def __init__(self, data_path, batch_size, dataset='train', hard_examples=[], normal_examples=[]):
+        self.data_path = os.path.join(data_path, dataset)
+        self.batch_size = batch_size
+        self.dataset = dataset
+        self.num_samples = len(glob.glob1(self.data_path, "*.png"))
+        self.hard_examples = hard_examples
+        self.normal_examples = normal_examples
+        
+    def get_sample(self, idx):
+        img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
+        y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
+        
+        return img, y, idx
+    
+    def get_dataset(self, num_parallel_calls=1, seed=1337):
+        import tensorflow as tf
+       
+        print(f"Number of {self.dataset} samples at '{self.data_path}': {self.num_samples}")
+ 
+        if seed is not None:
+            np.random.seed(seed)
+        
+        type = ['float32', 'float32', 'int32']
+        
+        
+        negative_ds = tf.data.Dataset.from_tensor_slices(self.hard_examples).repeat(1).shuffle(len(self.hard_examples))
+        negative_ds = negative_ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
+        
+        positive_ds = tf.data.Dataset.from_tensor_slices(self.normal_examples).repeat(1).shuffle(len(self.normal_examples))
+        positive_ds = positive_ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
+        
+        balanced_ds = tf.data.experimental.sample_from_datasets([negative_ds, positive_ds], [0.5, 0.5]).repeat(1)
+        balanced_ds = balanced_ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+        
+        return ds
+
+        
