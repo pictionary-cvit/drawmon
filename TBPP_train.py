@@ -17,7 +17,7 @@ from tbpp_training import TBPPFocalLoss
 
 from pictText_utils import Generator
 from data_pictText import InputGenerator
-from data_pictText import ImageInputGenerator
+from data_pictText import ImageInputGenerator, ImageInputGeneratorWithResampling
 
 # from utils.model import load_weights
 from utils.training import MetricUtility
@@ -268,12 +268,19 @@ def divide_train_dataset(gts, preds, idxs):
     return
 
 def make_train_dataset():
-    pass
+    """
+    Make train dataset with hard samples mining
+    """
+    gen_train = ImageInputGeneratorWithResampling(data_path, batch_size, 'train', hard_examples, normal_examples)
+    dataset_train = gen_train.get_dataset()
+    dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
+    
+    return dist_dataset_train
         
     
 
-gen_train = ImageInputGenerator(data_path, batch_size, 'train')
-gen_val = ImageInputGenerator(data_path, batch_size, 'val')
+gen_train = ImageInputGenerator(data_path, batch_size, 'train', give_idx=True)
+gen_val = ImageInputGenerator(data_path, batch_size, 'val', give_idx=True)
 
 dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 
@@ -317,7 +324,7 @@ iteration = 0
 
 # @tf.function
 def step(inputs, training=True):
-    x, y_true = inputs
+    x, y_true, idx = inputs
     if training:
         with tf.GradientTape() as tape:
             y_pred = model(x, training=True)
@@ -331,7 +338,7 @@ def step(inputs, training=True):
         gradients = tape.gradient(total_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         
-        divide_train_dataset(y_true, y_pred)
+        divide_train_dataset(y_true, y_pred, idx)
         
     else:
         y_pred = model(x, training=True)
@@ -364,10 +371,10 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
             tf.summary.scalar('loss', batch_loss, step=iteration)
         iteration += 1
     
+    dist_dataset_train = make_train_dataset()
+    
     hard_examples = []
     normal_examples = []
-    
-    make_train_dataset()
     
     
     model.save_weights(checkdir+'/weights.%03i.h5' % (k+1,))
