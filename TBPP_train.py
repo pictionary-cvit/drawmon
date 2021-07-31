@@ -256,7 +256,7 @@ def divide_train_dataset(gts, preds, idxs):
     - idxs: indexes of gts of size (B)
     """
     
-    for i, gt in enumerate(decoded_gts):
+    for i, gt in enumerate(gts):
         # classify sample
         decoded_gt = prior_util.decode(gt, class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False) # class_idx = -1 => all classes
         decoded_pred = prior_util.decode(preds[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
@@ -348,13 +348,13 @@ def step(inputs, training=True):
             total_loss += tf.add_n(model.losses)
     return total_loss
 
-@tf.function
+# @tf.function
 def distributed_train_step(dist_inputs):
     per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, True,))
     return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
                          axis=None)
 
-@tf.function
+# @tf.function
 def distributed_val_step(dist_inputs):
     per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, False,))
     return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
@@ -406,7 +406,5 @@ model.save('./saved_models/my_model' + '_' + time.strftime('%Y%m%d%H%M') + '_' +
 
 
 # In[ ]:
-
-
 
 

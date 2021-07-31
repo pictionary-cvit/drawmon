@@ -96,7 +96,7 @@ class ImageInputGenerator(object):
             np.random.seed(seed)
         
         type = None
-        if self.give_idx: type = ['float32', 'float32', 'int32']
+        if self.give_idx: type = ['float32', 'float32', 'int64']
         else: type = ['float32', 'float32']
         
         ds = tf.data.Dataset.range(self.num_samples).repeat(1).shuffle(self.num_samples)
@@ -133,9 +133,11 @@ class ImageInputGeneratorWithResampling(object):
         if seed is not None:
             np.random.seed(seed)
         
-        type = ['float32', 'float32', 'int32']
+        type = ['float32', 'float32', 'int64']
         
-        
+        print(f"Number of hard examples: {len(self.hard_examples)}")
+        print(f"Number of normal examples: {len(self.normal_examples)}")
+
         negative_ds = tf.data.Dataset.from_tensor_slices(self.hard_examples).repeat(1).shuffle(len(self.hard_examples))
         negative_ds = negative_ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
         
@@ -145,6 +147,6 @@ class ImageInputGeneratorWithResampling(object):
         balanced_ds = tf.data.experimental.sample_from_datasets([negative_ds, positive_ds], [0.5, 0.5]).repeat(1)
         balanced_ds = balanced_ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
         
-        return ds
+        return balanced_ds
 
         
