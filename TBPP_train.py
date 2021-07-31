@@ -21,6 +21,7 @@ from data_pictText import ImageInputGenerator
 
 # from utils.model import load_weights
 from utils.training import MetricUtility
+from utils.bboxes import iou
 
 from tbpp_utils import PriorUtil
 import argparse
@@ -86,6 +87,7 @@ parser.add_argument('--df', type=float, required=False, default=decay_factor)
 parser.add_argument('--npr', type=float, required=False, default=neg_pos_ratio)
 parser.add_argument('--isfl', type=eval, choices=[True, False], required=False, default=isfl)
 parser.add_argument('--activation', type=str, required=False, default='relu')
+parser.add_argument('--wsize', type=float, required=True, default=0.1)
 
 
 
@@ -118,6 +120,9 @@ decay_factor = args.df # No Decay
 isfl=args.isfl
 neg_pos_ratio = args.npr
 activation = args.activation
+
+# window size for hard example classification
+window_size = args.wsize
 
 tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices('GPU')) > 0 
@@ -219,6 +224,53 @@ loss = TBPPFocalLoss(lambda_conf=lambda_conf, lambda_offsets=lambda_offsets, isQ
 # regularizer = None
 regularizer = keras.regularizers.l2(5e-4) # None if disabled
 
+hard_examples = []
+normal_examples = []
+
+def is_hard_example(gt, pred):
+    """
+    if any box in gt, lets say b1 has maximum overlap threshold within window around 0.5 with any of the correctly classified prediction boxes
+    # Arguments
+        gt, pred: bounding boxes, numpy array of 
+            shape (num_boxes, 4).
+        Bounding box should be a numpy array of shape (4).
+            (x1, y1, x2, y2)
+    """
+    for b1 in gt:
+        max_overlap = 0.0
+        ious = iou(b1, pred)
+        for val in ious:
+            if (val > max_overlap): max_overlap = val
+        if 0.5 - window_size/2  <= max_overlap <= 0.5 + window_size/2:
+            return True
+        
+    return False
+    
+
+    
+def divide_train_dataset(gts, preds, idxs):
+    """
+    Mine hard examples after each epoch
+    - gts: array of ground truth samples of size (BX...)
+    - preds: predictions array (BX...)
+    - idxs: indexes of gts of size (B)
+    """
+    
+    for i, gt in enumerate(decoded_gts):
+        # classify sample
+        decoded_gt = prior_util.decode(gt, class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False) # class_idx = -1 => all classes
+        decoded_pred = prior_util.decode(preds[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
+        
+        idx = idxs[i]
+        if (is_hard_example(decoded_gt[:,:4], decoded_pred[:,:4])): hard_examples.append(idx)
+        else: normal_examples.append(idx)
+    
+    return
+
+def make_train_dataset():
+    pass
+        
+    
 
 gen_train = ImageInputGenerator(data_path, batch_size, 'train')
 gen_val = ImageInputGenerator(data_path, batch_size, 'val')
@@ -278,6 +330,9 @@ def step(inputs, training=True):
                 total_loss += tf.add_n(model.losses)
         gradients = tape.gradient(total_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        
+        divide_train_dataset(y_true, y_pred)
+        
     else:
         y_pred = model(x, training=True)
         metric_values = loss.compute(y_true, y_pred)
@@ -300,6 +355,7 @@ def distributed_val_step(dist_inputs):
 
 for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
     print('\nepoch %i/%i' % (k+1, epochs))
+    
 
     for dist_inputs in dist_dataset_train:
         batch_loss = distributed_train_step(dist_inputs)
@@ -307,7 +363,12 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
         with train_summary_writer.as_default():
             tf.summary.scalar('loss', batch_loss, step=iteration)
         iteration += 1
-        
+    
+    hard_examples = []
+    normal_examples = []
+    
+    make_train_dataset()
+    
     
     model.save_weights(checkdir+'/weights.%03i.h5' % (k+1,))
    
