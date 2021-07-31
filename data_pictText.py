@@ -95,8 +95,12 @@ class ImageInputGenerator(object):
         if seed is not None:
             np.random.seed(seed)
         
+        type = None
+        if self.give_idx: type = ['float32', 'float32', 'int32']
+        else: type = ['float32', 'float32']
+        
         ds = tf.data.Dataset.range(self.num_samples).repeat(1).shuffle(self.num_samples)
-        ds = ds.map(lambda x: tf.py_function(self.get_sample, [x,], ['float32', 'float32', 'int32']), num_parallel_calls=num_parallel_calls, deterministic=False)
+        ds = ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
         ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
         
         return ds
