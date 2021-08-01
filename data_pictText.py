@@ -139,7 +139,7 @@ class ImageInputGeneratorWithResampling(object):
         print(f"Number of hard examples: {len(self.hard_examples)}")
         print(f"Number of normal examples: {len(self.normal_examples)}")
 
-        negative_ds = tf.data.Dataset.from_tensor_slices(self.hard_examples).repeat(max(1, self.normal2hard_ratio)).shuffle(len(self.hard_examples))
+        negative_ds = tf.data.Dataset.from_tensor_slices(self.hard_examples).repeat(max(1, self.normal2hard_ratio)).shuffle(len(self.hard_examples)*max(1, self.normal2hard_ratio))
         negative_ds = negative_ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
         
         positive_ds = tf.data.Dataset.from_tensor_slices(self.normal_examples).repeat(1).shuffle(len(self.normal_examples))
