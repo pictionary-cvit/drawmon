@@ -118,6 +118,7 @@ class ImageInputGeneratorWithResampling(object):
         self.num_samples = len(glob.glob1(self.data_path, "*.png"))
         self.hard_examples = hard_examples
         self.normal_examples = normal_examples
+        self.normal2hard_ratios = len(normal_examples)//len(hard_examples)
         
     def get_sample(self, idx):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
@@ -138,7 +139,7 @@ class ImageInputGeneratorWithResampling(object):
         print(f"Number of hard examples: {len(self.hard_examples)}")
         print(f"Number of normal examples: {len(self.normal_examples)}")
 
-        negative_ds = tf.data.Dataset.from_tensor_slices(self.hard_examples).repeat(1).shuffle(len(self.hard_examples))
+        negative_ds = tf.data.Dataset.from_tensor_slices(self.hard_examples).repeat(max(1, self.normal2hard_ratio)).shuffle(len(self.hard_examples))
         negative_ds = negative_ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
         
         positive_ds = tf.data.Dataset.from_tensor_slices(self.normal_examples).repeat(1).shuffle(len(self.normal_examples))
