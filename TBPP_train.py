@@ -15,7 +15,7 @@ from tbpp_model import TBPP512, TBPP512_dense, TBPP512_dense_separable
 from tbpp_utils import PriorUtil
 from tbpp_training import TBPPFocalLoss
 
-from pictText_utils import Generator
+# from pictText_utils import Generator
 from data_pictText import InputGenerator
 from data_pictText import ImageInputGenerator, ImageInputGeneratorWithResampling
 
@@ -361,12 +361,16 @@ def distributed_train_step(dist_inputs):
     
     total_loss = 0.0
     
+    step_hard_examples = []
+    step_normal_examples = []
+    
     for (replica_loss, replica_hard_examples, replica_normal_examples) in list_results:
         total_loss += replica_loss
-        hard_examples += replica_hard_examples
-        normal_examples += replica_normal_examples
+        step_hard_examples += replica_hard_examples
+    
+        step_normal_examples += replica_normal_examples
         
-    return total_loss
+    return total_loss, step_hard_examples, step_normal_examples
     
     
 
@@ -381,7 +385,10 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
     
 
     for dist_inputs in dist_dataset_train:
-        batch_loss = distributed_train_step(dist_inputs)
+        batch_loss, step_hard_examples, step_normal_examples = distributed_train_step(dist_inputs)
+        
+        hard_examples += step_hard_examples
+        normal_examples += step_normal_examples
         
         with train_summary_writer.as_default():
             tf.summary.scalar('loss', batch_loss, step=iteration)

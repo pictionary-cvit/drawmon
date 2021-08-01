@@ -5,7 +5,7 @@ import glob
 import datetime
 import tensorflow as tf
 
-from pictText_utils import Generator
+# from pictText_utils import Generator
 
 
 
@@ -118,7 +118,7 @@ class ImageInputGeneratorWithResampling(object):
         self.num_samples = len(glob.glob1(self.data_path, "*.png"))
         self.hard_examples = hard_examples
         self.normal_examples = normal_examples
-        self.normal2hard_ratios = len(normal_examples)//len(hard_examples)
+        self.normal2hard_ratio = len(normal_examples)//len(hard_examples)
         
     def get_sample(self, idx):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
