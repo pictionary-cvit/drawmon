@@ -87,7 +87,8 @@ parser.add_argument('--df', type=float, required=False, default=decay_factor)
 parser.add_argument('--npr', type=float, required=False, default=neg_pos_ratio)
 parser.add_argument('--isfl', type=eval, choices=[True, False], required=False, default=isfl)
 parser.add_argument('--activation', type=str, required=False, default='relu')
-parser.add_argument('--wsize', type=float, required=True, default=0.1)
+parser.add_argument('--wlb', type=float, required=False, default=0.45)
+parser.add_argument('--wub', type=float, required=False, default=0.55)
 
 
 
@@ -122,7 +123,8 @@ neg_pos_ratio = args.npr
 activation = args.activation
 
 # window size for hard example classification
-window_size = args.wsize
+window_size_lb = args.wlb
+window_size_ub = args.wub
 
 tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices('GPU')) > 0 
@@ -241,7 +243,7 @@ def is_hard_example(gt, pred):
         ious = iou(b1, pred)
         for val in ious:
             if (val > max_overlap): max_overlap = val
-        if 0.5 - window_size/2  <= max_overlap <= 0.5 + window_size/2:
+        if window_size_lb <= max_overlap <= window_size_ub:
             return True
         
     return False
