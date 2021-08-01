@@ -257,6 +257,8 @@ def divide_train_dataset(gts, preds, idxs):
     - preds: predictions array (BX...)
     - idxs: indexes of gts of size (B)
     """
+    step_hard_examples = []
+    step_normal_examples = []
     
     for i, gt in enumerate(gts):
         # classify sample
@@ -264,10 +266,10 @@ def divide_train_dataset(gts, preds, idxs):
         decoded_pred = prior_util.decode(preds[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
         
         idx = idxs[i]
-        if (is_hard_example(decoded_gt[:,:4], decoded_pred[:,:4])): hard_examples.append(idx)
-        else: normal_examples.append(idx)
+        if (is_hard_example(decoded_gt[:,:4], decoded_pred[:,:4])): step_hard_examples.append(idx)
+        else: step_normal_examples.append(idx)
     
-    return
+    return step_hard_examples, step_normal_examples
 
 def make_train_dataset():
     """
@@ -340,7 +342,9 @@ def step(inputs, training=True):
         gradients = tape.gradient(total_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         
-        divide_train_dataset(y_true, y_pred, idx)
+        replica_hard_examples, replica_normal_examples = divide_train_dataset(y_true, y_pred, idx)
+        
+        return total_loss, replica_hard_examples, replica_normal_examples
         
     else:
         y_pred = model(x, training=True)
@@ -348,13 +352,23 @@ def step(inputs, training=True):
         total_loss = metric_values['loss']
         if len(model.losses):
             total_loss += tf.add_n(model.losses)
-    return total_loss
+        return total_loss
 
 # @tf.function
 def distributed_train_step(dist_inputs):
-    per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, True,))
-    return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
-                         axis=None)
+    per_replica_results = mirrored_strategy.run(step, args=(dist_inputs, True,))
+    list_results = mirrored_strategy.experimental_local_results(per_replica_results)
+    
+    total_loss = 0.0
+    
+    for (replica_loss, replica_hard_examples, replica_normal_examples) in list_results:
+        total_loss += replica_loss
+        hard_examples += replica_hard_examples
+        normal_examples += replica_normal_examples
+        
+    return total_loss
+    
+    
 
 # @tf.function
 def distributed_val_step(dist_inputs):
