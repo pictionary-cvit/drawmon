@@ -248,7 +248,7 @@ def is_hard_example(gt, pred):
         
     return False
     
-gen_train = ImageInputGeneratorWithResampling(data_path, batch_size, 'train')
+gen_train_resampling = ImageInputGeneratorWithResampling(data_path, batch_size, 'train')
     
 def divide_train_dataset(gts, preds, idxs):
     """
@@ -273,7 +273,7 @@ def make_train_dataset():
     """
     Make train dataset with hard samples mining
     """
-    dataset_train = gen_train.get_dataset(hard_examples=hard_examples, normal_examples=normal_examples)
+    dataset_train = gen_train_resampling.get_dataset(hard_examples=hard_examples, normal_examples=normal_examples)
     dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
     
     return dist_dataset_train
@@ -339,7 +339,7 @@ def step(inputs, training=True):
         gradients = tape.gradient(total_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         
-        divide_train_dataset(y_true, y_pred, idx)
+        if (num_classes == 2): divide_train_dataset(y_true, y_pred, idx)
         
         return total_loss
         
@@ -375,10 +375,10 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
             tf.summary.scalar('loss', batch_loss, step=iteration)
         iteration += 1
     
-    dist_dataset_train = make_train_dataset()
-    
-    hard_examples = []
-    normal_examples = []
+    if (num_classes == 2):
+        dist_dataset_train = make_train_dataset()
+        hard_examples = []
+        normal_examples = []
     
     
     model.save_weights(checkdir+'/weights.%03i.h5' % (k+1,))
