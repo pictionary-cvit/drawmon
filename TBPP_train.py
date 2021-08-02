@@ -89,7 +89,8 @@ parser.add_argument('--isfl', type=eval, choices=[True, False], required=False, 
 parser.add_argument('--activation', type=str, required=False, default='relu')
 parser.add_argument('--wlb', type=float, required=False, default=0.45)
 parser.add_argument('--wub', type=float, required=False, default=0.55)
-
+parser.add_argument('--isHM', type=eval,
+                      choices=[True, False], required=False, default='False')
 
 
 args = parser.parse_args()
@@ -122,9 +123,11 @@ isfl=args.isfl
 neg_pos_ratio = args.npr
 activation = args.activation
 
+
 # window size for hard example classification
 window_size_lb = args.wlb
 window_size_ub = args.wub
+is_hard_mining = args.isHM
 
 tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices('GPU')) > 0 
@@ -339,7 +342,7 @@ def step(inputs, training=True):
         gradients = tape.gradient(total_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         
-        if (num_classes == 2): divide_train_dataset(y_true, y_pred, idx)
+        # if (is_hard_mining): divide_train_dataset(y_true, y_pred, idx)
         
         return total_loss
         
@@ -351,14 +354,14 @@ def step(inputs, training=True):
             total_loss += tf.add_n(model.losses)
         return total_loss
 
-# @tf.function
+@tf.function
 def distributed_train_step(dist_inputs):
     per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, True,))
     return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
                          axis=None) 
     
 
-# @tf.function
+@tf.function
 def distributed_val_step(dist_inputs):
     per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, False,))
     return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
@@ -370,12 +373,16 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
 
     for dist_inputs in dist_dataset_train:
         batch_loss = distributed_train_step(dist_inputs)
-        
+        if (is_hard_mining): 
+            x, y_true, idx = dist_inputs
+            y_pred = model(x, training=False)
+            divide_train_dataset(y_true, y_pred, idx)       
+ 
         with train_summary_writer.as_default():
             tf.summary.scalar('loss', batch_loss, step=iteration)
         iteration += 1
     
-    if (num_classes == 2):
+    if (is_hard_mining):
         dist_dataset_train = make_train_dataset()
         hard_examples = []
         normal_examples = []
