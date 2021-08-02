@@ -248,7 +248,7 @@ def is_hard_example(gt, pred):
         
     return False
     
-
+gen_train = ImageInputGeneratorWithResampling(data_path, batch_size, 'train')
     
 def divide_train_dataset(gts, preds, idxs):
     """
@@ -257,8 +257,6 @@ def divide_train_dataset(gts, preds, idxs):
     - preds: predictions array (BX...)
     - idxs: indexes of gts of size (B)
     """
-    step_hard_examples = []
-    step_normal_examples = []
     
     for i, gt in enumerate(gts):
         # classify sample
@@ -266,17 +264,16 @@ def divide_train_dataset(gts, preds, idxs):
         decoded_pred = prior_util.decode(preds[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
         
         idx = idxs[i]
-        if (is_hard_example(decoded_gt[:,:4], decoded_pred[:,:4])): step_hard_examples.append(idx)
-        else: step_normal_examples.append(idx)
+        if (is_hard_example(decoded_gt[:,:4], decoded_pred[:,:4])): hard_examples.append(idx)
+        else: normal_examples.append(idx)
     
-    return step_hard_examples, step_normal_examples
+    return
 
 def make_train_dataset():
     """
     Make train dataset with hard samples mining
     """
-    gen_train = ImageInputGeneratorWithResampling(data_path, batch_size, 'train', hard_examples, normal_examples)
-    dataset_train = gen_train.get_dataset()
+    dataset_train = gen_train.get_dataset(hard_examples=hard_examples, normal_examples=normal_examples)
     dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
     
     return dist_dataset_train
@@ -342,9 +339,9 @@ def step(inputs, training=True):
         gradients = tape.gradient(total_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         
-        replica_hard_examples, replica_normal_examples = divide_train_dataset(y_true, y_pred, idx)
+        divide_train_dataset(y_true, y_pred, idx)
         
-        return total_loss, replica_hard_examples, replica_normal_examples
+        return total_loss
         
     else:
         y_pred = model(x, training=True)
@@ -356,22 +353,9 @@ def step(inputs, training=True):
 
 # @tf.function
 def distributed_train_step(dist_inputs):
-    per_replica_results = mirrored_strategy.run(step, args=(dist_inputs, True,))
-    list_results = mirrored_strategy.experimental_local_results(per_replica_results)
-    
-    total_loss = 0.0
-    
-    step_hard_examples = []
-    step_normal_examples = []
-    
-    for (replica_loss, replica_hard_examples, replica_normal_examples) in list_results:
-        total_loss += replica_loss
-        step_hard_examples += replica_hard_examples
-    
-        step_normal_examples += replica_normal_examples
-        
-    return total_loss, step_hard_examples, step_normal_examples
-    
+    per_replica_losses = mirrored_strategy.run(step, args=(dist_inputs, True,))
+    return mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
+                         axis=None) 
     
 
 # @tf.function
@@ -385,10 +369,7 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
     
 
     for dist_inputs in dist_dataset_train:
-        batch_loss, step_hard_examples, step_normal_examples = distributed_train_step(dist_inputs)
-        
-        hard_examples += step_hard_examples
-        normal_examples += step_normal_examples
+        batch_loss = distributed_train_step(dist_inputs)
         
         with train_summary_writer.as_default():
             tf.summary.scalar('loss', batch_loss, step=iteration)
