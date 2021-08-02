@@ -263,12 +263,15 @@ def divide_train_dataset(gts, preds, idxs):
     
     for i, gt in enumerate(gts):
         # classify sample
-        decoded_gt = prior_util.decode(gt, class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False) # class_idx = -1 => all classes
-        decoded_pred = prior_util.decode(preds[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
+        if (idxs[i] in hard_examples) or (idxs[i] in normal_examples):
+            continue
+        else:
+            decoded_gt = prior_util.decode(gt, class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False) # class_idx = -1 => all classes
+            decoded_pred = prior_util.decode(preds[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
         
-        idx = idxs[i]
-        if (is_hard_example(decoded_gt[:,:4], decoded_pred[:,:4])): hard_examples.append(idx)
-        else: normal_examples.append(idx)
+            idx = idxs[i]
+            if (is_hard_example(decoded_gt[:,:4], decoded_pred[:,:4])): hard_examples.append(idx)
+            else: normal_examples.append(idx)
     
     return
 
@@ -375,8 +378,14 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
         batch_loss = distributed_train_step(dist_inputs)
         if (is_hard_mining): 
             x, y_true, idx = dist_inputs
-            y_pred = model(x, training=False)
-            divide_train_dataset(y_true, y_pred, idx)       
+            x_list = mirrored_strategy.experimental_local_results(x)
+            y_true_list = mirrored_strategy.experimental_local_results(y_true)
+            idx_list = mirrored_strategy.experimental_local_results(idx)
+            for i, x_i in enumerate(x_list):
+                y_true_i = y_true_list[i]
+                idx_i = idx_list[i]
+                y_pred_i = model(x_i, training=False)
+                divide_train_dataset(y_true_i, y_pred_i, idx_i)       
  
         with train_summary_writer.as_default():
             tf.summary.scalar('loss', batch_loss, step=iteration)
