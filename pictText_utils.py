@@ -16,8 +16,8 @@ class Generator(object):
         self.data_path = data_path
         self.padding = padding
     
-    def getFileNames(self, anomaly="**", split="**", category="**", augmented = "**", svg="*.svg"):
-        search_pattern = os.path.join(self.data_path, anomaly, category, split, augmented, svg)
+    def getFileNames(self, anomaly="**", split="**", category="**", augmented = "**", class_name="**", svg="*.svg"):
+        search_pattern = os.path.join(self.data_path, anomaly, category, split, augmented, class_name, svg)
         return glob.glob(search_pattern, recursive=True)
 
     def get1Channel(self, img):
@@ -95,8 +95,8 @@ class Generator(object):
         return [item["anomaly_class"] for item in metadata]
     
 
-    def getDS(self, split="train", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=1, augmented = "**", num_classes=2):
-        ds = PDS.ListDataset(self.getFileNames(anomaly="anomaly", split=split, augmented=augmented))\
+    def getDS(self, split="train", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=1, augmented = "**", class_name="**", num_classes=2):
+        ds = PDS.ListDataset(self.getFileNames(anomaly="anomaly", split=split, class_name=class_name, augmented=augmented))\
         .map(Transformers.SvgToPointsCallable(depth=3))\
         .map(Transformers.NormaliseSketchesCallable(min_coord=0, max_coord=512-(2*self.padding)-1))\
         

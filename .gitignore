@@ -9,6 +9,7 @@ images/*
 saved_datasets/*
 saved_models/*
 convert_dataset2tfds.py
+visualize_data.py
 
 *.sh
 *.out
