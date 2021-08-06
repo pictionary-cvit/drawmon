@@ -84,7 +84,7 @@ class ImageInputGenerator(object):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
         y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
         
-        if self.give_idx: return img, y, idx
+        if self.give_idx: return img, y, int(idx)
         else: return img, y
     
     def get_dataset(self, num_parallel_calls=1, seed=1337):
@@ -121,32 +121,43 @@ class ImageInputGeneratorWithResampling(object):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
         y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
         
-        return img, y, idx
+        return img, y, int(idx)
     
-    def get_dataset(self, num_parallel_calls=1, seed=1337, hard_examples=[], normal_examples=[]):
+    def get_dataset(self, num_parallel_calls=1, seed=1337, hard_examples=[], normal_examples=[], max_repeat=3):
         import tensorflow as tf
-       
-        normal2hard_ratio = len(normal_examples)//len(hard_examples)
+      
+        if (len(hard_examples) == 0): normal2hard_ratio = 1
+        else: normal2hard_ratio = max(len(normal_examples)//len(hard_examples), 1)
 
         print(f"Number of {self.dataset} samples at '{self.data_path}': {self.num_samples}")
  
         if seed is not None:
             np.random.seed(seed)
         
-        type = ['float32', 'float32', 'int64']
+        ds_type = ['float32', 'float32', 'int64']
         
         print(f"Number of hard examples: {len(hard_examples)}")
         print(f"Number of normal examples: {len(normal_examples)}")
 
-        negative_ds = tf.data.Dataset.from_tensor_slices(hard_examples).repeat(max(1, normal2hard_ratio)).shuffle(len(hard_examples)*max(1, normal2hard_ratio))
-        negative_ds = negative_ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
         
-        positive_ds = tf.data.Dataset.from_tensor_slices(normal_examples).repeat(1).shuffle(len(normal_examples))
-        positive_ds = positive_ds.map(lambda x: tf.py_function(self.get_sample, [x,], type), num_parallel_calls=num_parallel_calls, deterministic=False)
+        samples = min(max_repeat, normal2hard_ratio)*hard_examples + normal_examples
+
+        print("assert if hard_examples + normal_examples == num_samples")
+        assert sum(range(self.num_samples)) == (sum(hard_examples) + sum(normal_examples))
+
+        print(f"Number of samples: {len(samples)}")
         
-        balanced_ds = tf.data.experimental.sample_from_datasets([negative_ds, positive_ds], [0.5, 0.5]).repeat(1)
-        balanced_ds = balanced_ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+        assert len(samples) >= self.batch_size
         
-        return balanced_ds
+        mod = (len(samples))%(self.batch_size)
+        samples = samples + samples[:(self.batch_size - mod)]
+
+        assert (len(samples))%(self.batch_size) == 0
+
+        ds = tf.data.Dataset.from_tensor_slices(samples).repeat(1).shuffle(len(samples))
+        ds = ds.map(lambda x: tf.py_function(self.get_sample, [x,], ds_type), num_parallel_calls=num_parallel_calls, deterministic=False)
+        ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+
+        return ds
 
         

@@ -286,7 +286,7 @@ def evaluate(class_idx = -1):
     
     plot_best_epoch()
 
-for class_idx in range(1, num_classes, 1):
-    evaluate(class_idx)
-# evaluate(-1)
+#for class_idx in range(1, num_classes, 1):
+#    evaluate(class_idx)
+evaluate(-1)
 

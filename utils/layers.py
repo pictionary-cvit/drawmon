@@ -59,6 +59,13 @@ class Mish(Layer):
     def call(self, x):
         return custom_op(x)
 
+def tfa_mish(x):
+    """
+         https://github.com/tensorflow/addons/blob/v0.13.0/tensorflow_addons/activations/mish.py#L21-L46
+    """
+    x = tf.convert_to_tensor(x)
+    return x * tf.math.tanh(tf.math.softplus(x))
+
 
 class Normalize(Layer):
     """Normalization layer as described in ParseNet paper.

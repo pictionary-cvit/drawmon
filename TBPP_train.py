@@ -91,7 +91,7 @@ parser.add_argument('--wlb', type=float, required=False, default=0.45)
 parser.add_argument('--wub', type=float, required=False, default=0.55)
 parser.add_argument('--isHM', type=eval,
                       choices=[True, False], required=False, default='False')
-
+parser.add_argument('--mxRep', type=int, required=False, default=3)
 
 args = parser.parse_args()
 print(args)
@@ -128,6 +128,8 @@ activation = args.activation
 window_size_lb = args.wlb
 window_size_ub = args.wub
 is_hard_mining = args.isHM
+
+max_repeat = args.mxRep
 
 tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices('GPU')) > 0 
@@ -279,7 +281,7 @@ def make_train_dataset():
     """
     Make train dataset with hard samples mining
     """
-    dataset_train = gen_train_resampling.get_dataset(hard_examples=hard_examples, normal_examples=normal_examples)
+    dataset_train = gen_train_resampling.get_dataset(hard_examples=hard_examples, normal_examples=normal_examples, max_repeat=max_repeat)
     dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
     
     return dist_dataset_train
@@ -381,11 +383,12 @@ for k in tqdm(range(initial_epoch, epochs), 'total', leave=False):
             x_list = mirrored_strategy.experimental_local_results(x)
             y_true_list = mirrored_strategy.experimental_local_results(y_true)
             idx_list = mirrored_strategy.experimental_local_results(idx)
+            assert len(x_list) == len(y_true_list) == len(idx_list)
             for i, x_i in enumerate(x_list):
                 y_true_i = y_true_list[i]
                 idx_i = idx_list[i]
                 y_pred_i = model(x_i, training=False)
-                divide_train_dataset(y_true_i, y_pred_i, idx_i)       
+                divide_train_dataset(y_true_i, y_pred_i, idx_i)   
  
         with train_summary_writer.as_default():
             tf.summary.scalar('loss', batch_loss, step=iteration)
