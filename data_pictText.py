@@ -230,7 +230,7 @@ class ImageInputGeneratorMulticlass(object):
         repeats = list(map(lambda x: lcm // len(x), files))
 
         print(
-            f"""Number of {self.dataset} samples at '{self.data_path}': {self.num_samples}
+            f"""Number of {self.split} samples at '{self.data_path}': {self.num_samples}
             Number of samples collected = {len(real) + len(symbol) + len(text) + len(number) + len(circle)}
             Dataset = [circle, number, text, symbol, real]
             repeats = {repeats}
