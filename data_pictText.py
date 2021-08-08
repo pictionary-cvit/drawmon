@@ -231,7 +231,7 @@ class ImageInputGeneratorMulticlass(object):
 
         print(
             f"""Number of {self.split} samples at '{self.data_path}': {self.num_samples}
-            Number of samples collected = {len(real) + len(symbol) + len(text) + len(number) + len(circle)}
+            Number of samples collected = {list(map(len, files))}
             Dataset = [circle, number, text, symbol, real]
             repeats = {repeats}
             lcs = {lcm}
