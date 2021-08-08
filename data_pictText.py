@@ -197,8 +197,8 @@ class ImageInputGeneratorMulticlass(object):
         )
 
     def get_sample(self, image_file, label_file):
-        img = np.load(image_file)
-        y = np.load(label_file)
+        img = np.load(image_file.numpy())
+        y = np.load(label_file.numpy())
 
         if self.give_idx:
             return img, y, image_file, label_file
