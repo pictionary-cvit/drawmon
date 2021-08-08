@@ -386,7 +386,11 @@ iteration = 0
 
 # @tf.function
 def step(inputs, training=True):
-    x, y_true, idx = inputs
+    if not is_hard_mining:
+        x, y_true = inputs
+    else:
+        x, y_true, _ = inputs
+
     if training:
         with tf.GradientTape() as tape:
             y_pred = model(x, training=True)
