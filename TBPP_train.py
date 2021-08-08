@@ -337,9 +337,7 @@ else:
     gen_train = ImageInputGeneratorMulticlass(
         data_path, batch_size, "train", give_idx=False
     )
-    gen_val = ImageInputGeneratorMulticlass(
-        data_path, batch_size, "val", give_idx=False
-    )
+    gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=True)
 
 dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 

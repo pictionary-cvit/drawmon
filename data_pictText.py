@@ -230,7 +230,7 @@ class ImageInputGeneratorMulticlass(object):
                 [circle, number, text, symbol, real],
             )
         )
-        lens = map(lambda x: len(x), files)
+        lens = list(map(lambda x: len(x), files))
         repeats = list(map(lambda x: max(lens) // x, lens))
 
         print(
