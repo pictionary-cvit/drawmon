@@ -242,7 +242,7 @@ class ImageInputGeneratorMulticlass(object):
         if seed is not None:
             np.random.seed(seed)
 
-        datasets = map(lambda x: self.createDSFromFiles(*x), zip(files, repeats))
+        datasets = list(map(lambda x: self.createDSFromFiles(*x), zip(files, repeats)))
         final_dataset = tf.data.experimental.sample_from_datasets(datasets)
         return final_dataset.batch(self.batch_size).prefetch(
             tf.data.experimental.AUTOTUNE
