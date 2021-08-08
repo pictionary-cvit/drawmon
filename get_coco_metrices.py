@@ -102,7 +102,7 @@ priors_wh = tf.Variable(prior_util.priors_wh/prior_util.image_size, dtype=tf.flo
 priors_variances = tf.Variable(prior_util.priors_variances, dtype=tf.float32)
 
 
-gen_val = ImageInputGenerator(data_path, batch_size, 'val')
+gen_val = ImageInputGenerator(data_path, batch_size, data_split)
 
 dataset_val = gen_val.get_dataset()
 print(f"Number of validation batches: {len(dataset_val)}")
@@ -123,7 +123,7 @@ y_pred = []
 
 
 classes = ["bg", "text", "number", "symbol", "circle"]
-checkdir = f'{weights_path}/cocometrics'
+checkdir = f'{weights_path}/cocometrics/{data_split}'
 
 if weights_path[-1] != '/':
     weight_files = glob.glob(f'{weights_path}/*.h5')
