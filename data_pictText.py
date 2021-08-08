@@ -224,18 +224,20 @@ class ImageInputGeneratorMulticlass(object):
             self.data_path, split=self.split, anomaly_class="real"
         )
 
-        files = [circle, number, text, symbol, real]
-        gcd = reduce(lambda x, y: math.gcd(x, len(y)), files, self.batch_size)
-        lcm = reduce(lambda x, y: x * len(y) // gcd, files, 1) * self.batch_size
-        repeats = list(map(lambda x: lcm // len(x), files))
+        files = list(
+            map(
+                lambda x: x[: len(x) // self.batch_size * self.batch_size],
+                [circle, number, text, symbol, real],
+            )
+        )
+        lens = map(lambda x: len(x), files)
+        repeats = list(map(lambda x: max(lens) // x, lens))
 
         print(
             f"""Number of {self.split} samples at '{self.data_path}': {self.num_samples}
             Number of samples collected = {list(map(len, files))}
             Dataset = [circle, number, text, symbol, real]
             repeats = {repeats}
-            lcs = {lcm}
-            gcd = {gcd}
             """
         )
 
