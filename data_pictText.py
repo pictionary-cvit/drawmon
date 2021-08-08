@@ -233,9 +233,9 @@ class ImageInputGeneratorMulticlass(object):
             f"""Number of {self.dataset} samples at '{self.data_path}': {self.num_samples}
             Number of samples collected = {len(real) + len(symbol) + len(text) + len(number) + len(circle)}
             Dataset = [circle, number, text, symbol, real]
-            {repeats=}
-            {lcm=}
-            {gcd=}
+            repeats = {repeats}
+            lcs = {lcm}
+            gcd = {gcd}
             """
         )
 
