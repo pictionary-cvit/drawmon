@@ -107,7 +107,7 @@ class ImageInputGenerator(object):
         self.data_path = os.path.join(data_path, dataset)
         self.batch_size = batch_size
         self.dataset = dataset
-        self.num_samples = len(glob.glob1(self.data_path, "*.png"))
+        self.num_samples = len(glob.glob1(self.data_path, "*.npy")) // 2
         self.give_idx = give_idx
 
     def get_sample(self, idx):
