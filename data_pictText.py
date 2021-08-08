@@ -155,7 +155,7 @@ class ImageInputGenerator(object):
 class ImageInputGeneratorMulticlass(object):
     """Model input generator with images i.e without using memcache"""
 
-    def __init__(self, data_path, split, batch_size, give_idx=False):
+    def __init__(self, data_path, batch_size, split, give_idx=False):
         self.data_path = data_path
         self.split = split
         self.batch_size = batch_size
