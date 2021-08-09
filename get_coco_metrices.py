@@ -61,6 +61,8 @@ parser.add_argument('--wpath', type=str, required=True, default=None)
 
 parser.add_argument('--onlyLastwt', type=eval, choices=[True, False], required=False, default=onlyLastwt)
 parser.add_argument('--activation', type=str, required=False, default='relu')
+parser.add_argument('--onlyWt', type=int, required=False, default=None)
+
 
 args = parser.parse_args()
 print(args)
@@ -83,6 +85,8 @@ weights_path=args.wpath
 data_split=args.split
 
 only_last = args.onlyLastwt
+
+onlyWt = args.onlyWt
 
 model_name=args.model
 
@@ -135,6 +139,9 @@ if only_last == True:
     weight_files = [weight_files[-1]]
 
 
+if onlyWt is not None:
+    weight_files = [weight_files[onlyWt-1]]
+
 def renderPreds(imgs, preds, truths=None, only_img = False):   
     rends = []
     for i in range(imgs.shape[0]):
@@ -163,8 +170,10 @@ def renderPreds(imgs, preds, truths=None, only_img = False):
     
     return np.array(rends)
 
-def lprint(s):
-    with open(f"{weights_path}/results/{data_split}/result_log.txt", "a") as fil:
+def lprint(s, class_index):
+    if class_index == -1: class_index = "all"
+    else: class_index = str(class_index)
+    with open(f"{weights_path}/results/{data_split}/result_log_{class_index}.txt", "a") as fil:
         fil.write(s)
         fil.write('\n')
     
@@ -273,16 +282,16 @@ def evaluate(class_idx = -1):
         r = tp/(tp + fn)
         acc = detection_accuracy/sample_count
 
-        lprint(f'class {class_name}: Detection: acc = {acc}, p = {p}, r = {r}, f1 = {f1(p, r)}')
-        lprint(f'class {class_name}: Detection: acc = {round(acc, 2)}, p = {round(p, 2)}, r = {round(r, 2)}, f1 = {round(f1(p,r), 2)}')
-        lprint(f'class {class_name}: Best Epoch: {best_epoch}')
-        lprint(f'class {class_name}: Best Metrics: {best_metrics}')
+        lprint(f'class {class_name}: Detection: acc = {acc}, p = {p}, r = {r}, f1 = {f1(p, r)}', class_idx)
+        lprint(f'class {class_name}: Detection: acc = {round(acc, 2)}, p = {round(p, 2)}, r = {round(r, 2)}, f1 = {round(f1(p,r), 2)}', class_idx)
+        lprint(f'class {class_name}: Best Epoch: {best_epoch}', class_idx)
+        lprint(f'class {class_name}: Best Metrics: {best_metrics}', class_idx)
 
         ap = best_metrics[1][1]
         ar = best_metrics[7][1]
 
-        lprint(f'class {class_name}: ap = {ap}, ar = {ar}, f1 = {f1(ap,ar)}')
-        lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ')
+        lprint(f'class {class_name}: ap = {ap}, ar = {ar}, f1 = {f1(ap,ar)}', class_idx)
+        lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ', class_idx)
     
     plot_best_epoch()
 
