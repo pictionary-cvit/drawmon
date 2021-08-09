@@ -294,8 +294,13 @@ def evaluate(class_idx = -1):
         lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ', class_idx)
     
     plot_best_epoch()
+    return best_epoch
 
 #for class_idx in range(1, num_classes, 1):
 #    evaluate(class_idx)
-evaluate(-1)
-
+best_epoch = evaluate(-1)
+if num_classes > 2:
+    # multiclass
+    weight_files = [weight_files[best_epoch-1]]
+    for class_idx in range(1, num_classes, 1):
+        evaluate(class_idx)
