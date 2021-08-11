@@ -22,6 +22,8 @@ from cocoevals import PycocoMetric
 import matplotlib.pyplot as plt
 import cv2
 
+epsilon = 1e-7
+
 # Get Argument
 data_path = "/home/nikhil.bansal/pictionary_redux/pictionary_redux/dataset/obj_detection_data"
 batch_size = 16
@@ -61,7 +63,6 @@ parser.add_argument('--wpath', type=str, required=True, default=None)
 
 parser.add_argument('--onlyLastwt', type=eval, choices=[True, False], required=False, default=onlyLastwt)
 parser.add_argument('--activation', type=str, required=False, default='relu')
-parser.add_argument('--onlyWt', type=int, required=False, default=None)
 
 
 args = parser.parse_args()
@@ -85,8 +86,6 @@ weights_path=args.wpath
 data_split=args.split
 
 only_last = args.onlyLastwt
-
-onlyWt = args.onlyWt
 
 model_name=args.model
 
@@ -114,7 +113,7 @@ print(f"Number of validation batches: {len(dataset_val)}")
 
 
 pycoco_metric = PycocoMetric(iou_threshold = 0.5,
-                             confidence_threshold = 0.3, 
+                             confidence_threshold = confidence_threshold, 
                              top_k = 200, num_classes=num_classes)
 
 def get_AP(y_true, y_pred):
@@ -138,9 +137,6 @@ weight_files.sort()
 if only_last == True:
     weight_files = [weight_files[-1]]
 
-
-if onlyWt is not None:
-    weight_files = [weight_files[onlyWt-1]]
 
 def renderPreds(imgs, preds, truths=None, only_img = False):   
     rends = []
@@ -170,6 +166,9 @@ def renderPreds(imgs, preds, truths=None, only_img = False):
     
     return np.array(rends)
 
+# make results dir
+os.makedirs(f"{weights_path}/results/{data_split}", exist_ok=True)
+
 def lprint(s, class_index):
     if class_index == -1: class_index = "all"
     else: class_index = str(class_index)
@@ -178,16 +177,17 @@ def lprint(s, class_index):
         fil.write('\n')
     
 
-def evaluate(class_idx = -1):
+def evaluate(class_idx = -1, best_epoch_base=0, isCreateTfSummary=True):
     if class_idx == -1:
         class_name = "all"
     else: 
         class_name = classes[class_idx]
 
-    os.makedirs(f"{checkdir}/tb/{class_idx}", exist_ok=True)
-    val_summary_writer = tf.summary.create_file_writer(f"{checkdir}/tb/{class_idx}")
+    if isCreateTfSummary:
+        os.makedirs(f"{checkdir}/tb/{class_idx}", exist_ok=True)
+        val_summary_writer = tf.summary.create_file_writer(f"{checkdir}/tb/{class_idx}")
     best_metrics=None
-    best_epoch=0
+    best_epoch=1
     
 
     for filep in tqdm(range(len(weight_files))):
@@ -219,20 +219,21 @@ def evaluate(class_idx = -1):
             # No predictions for the whole val-set
             print(f"Skipping epoch-{filep+1}, as there are no predictions in the whole val-set.")
         else:    
-            with val_summary_writer.as_default():
-                metrics = get_AP(np.array(y_true), np.array(y_pred))
-                # Current AP@0.50 is given by metrics[1][1]
-                for metric, metric_value in metrics:
-                    tf.summary.scalar(str(metric), metric_value, step=filep+1)
-            
-                if best_metrics == None:
+            metrics = get_AP(np.array(y_true), np.array(y_pred))
+            # Current AP@0.50 is given by metrics[1][1]
+            if isCreateTfSummary:
+                with val_summary_writer.as_default():
+                    for metric, metric_value in metrics:
+                        tf.summary.scalar(str(metric), metric_value, step=filep+1)
+            print(metrics)
+            if best_metrics == None:
+                best_metrics = metrics
+                best_epoch = filep + 1
+            else:
+                if (metrics[1][1] > best_metrics[1][1]):
+                    print(f"Best epoch changed from {best_epoch} to {filep+1}")
                     best_metrics = metrics
                     best_epoch = filep + 1
-                else:
-                    if (metrics[1][1] > best_metrics[1][1]):
-                        print(f"Best epoch changed from {best_epoch} to {filep+1}")
-                        best_metrics = metrics
-                        best_epoch = filep + 1
     
     def plot_best_epoch():
         """Plot and save predictions from model having weights that gives best AP"""
@@ -247,6 +248,7 @@ def evaluate(class_idx = -1):
         fp = 0
         tn = 0
         fn = 0
+        isRenderPrediction = False
     
         for ii, (images, data) in enumerate(dataset_val):
             preds = model.predict_on_batch(images)
@@ -265,33 +267,36 @@ def evaluate(class_idx = -1):
                 if (len(truths) != 0 and len(res) != 0):
                     tp += 1
 
-                render = renderPreds(np.array([images[i]]), np.array([res]), np.array([truths]))
-                dirpath = f"{weights_path}/results/{data_split}/{weight_files[filep].split('/')[-1]}_{class_idx}"
+                if isRenderPrediction:
+                    render = renderPreds(np.array([images[i]]), np.array([res]), np.array([truths]))
+                    dirpath = f"{weights_path}/results/{data_split}/{weight_files[filep].split('/')[-1]}_{class_idx}"
 
-                os.makedirs(dirpath, exist_ok=True)
-                filename = f"{dirpath}/{sample_count}.png"
+                    os.makedirs(dirpath, exist_ok=True)
+                    filename = f"{dirpath}/{sample_count}.png"
+                    cv2.imwrite(filename, render[0])
+                
                 sample_count += 1
-                cv2.imwrite(filename, render[0])
         
     
     
         def f1(p,r):
             return 2*p*r/(p+r) if p+r != 0 else 0
 
-        p = tp/(tp + fp)
-        r = tp/(tp + fn)
+        p = tp/(tp + fp + epsilon)
+        r = tp/(tp + fn + epsilon)
         acc = detection_accuracy/sample_count
 
         lprint(f'class {class_name}: Detection: acc = {acc}, p = {p}, r = {r}, f1 = {f1(p, r)}', class_idx)
         lprint(f'class {class_name}: Detection: acc = {round(acc, 2)}, p = {round(p, 2)}, r = {round(r, 2)}, f1 = {round(f1(p,r), 2)}', class_idx)
-        lprint(f'class {class_name}: Best Epoch: {best_epoch}', class_idx)
+        lprint(f'class {class_name}: Best Epoch: {best_epoch + best_epoch_base}', class_idx)
         lprint(f'class {class_name}: Best Metrics: {best_metrics}', class_idx)
+        
+        if best_metrics is not None:
+            ap = best_metrics[1][1]
+            ar = best_metrics[7][1]
 
-        ap = best_metrics[1][1]
-        ar = best_metrics[7][1]
-
-        lprint(f'class {class_name}: ap = {ap}, ar = {ar}, f1 = {f1(ap,ar)}', class_idx)
-        lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ', class_idx)
+            lprint(f'class {class_name}: ap = {ap}, ar = {ar}, f1 = {f1(ap,ar)}', class_idx)
+            lprint(f'class {class_name}: ap = {round(ap, 2)}, ar = {round(ar, 2)}, f1 = {round(f1(ap,ar), 2)} ', class_idx)
     
     plot_best_epoch()
     return best_epoch
@@ -299,8 +304,9 @@ def evaluate(class_idx = -1):
 #for class_idx in range(1, num_classes, 1):
 #    evaluate(class_idx)
 best_epoch = evaluate(-1)
+print(f"best epoch: {best_epoch}")
 if num_classes > 2:
     # multiclass
     weight_files = [weight_files[best_epoch-1]]
     for class_idx in range(1, num_classes, 1):
-        evaluate(class_idx)
+        evaluate(class_idx, best_epoch-1, False)
