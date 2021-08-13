@@ -148,6 +148,8 @@ class ImageInputGenerator(object):
             deterministic=False,
         )
         ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+	
+        print(len(ds))
 
         return ds
 
@@ -159,7 +161,7 @@ class ImageInputGeneratorMulticlass(object):
         self.data_path = data_path
         self.split = split
         self.batch_size = batch_size
-        self.num_samples = len(glob.glob1(self.data_path, "*.png"))
+        self.num_samples = len(glob.glob(os.path.join(self.data_path, self.split, "**", "*.png"), recursive=True))
         self.give_idx = give_idx
 
     @staticmethod
@@ -168,6 +170,7 @@ class ImageInputGeneratorMulticlass(object):
         split,
         anomaly_class="**",
     ):
+        print(f"getting list of (sample, label) in {os.path.join(dataset, split, anomaly_class)}........")
         pattern = os.path.join(dataset, split, anomaly_class, "label_*.npy")
         labels = glob.glob(pattern, recursive=True)
 
@@ -182,21 +185,26 @@ class ImageInputGeneratorMulticlass(object):
         return list(zip(set(imgs), set(labels)))
 
     def createDSFromFiles(self, files, repeat):
+        print("creating DS from files........")
         if self.give_idx:
             type = ["float32", "float32", "string", "string"]
         else:
             type = ["float32", "float32"]
+        
+        ds = tf.data.Dataset.from_tensor_slices(files).repeat(repeat).map(
+            lambda x: tf.py_function(self.get_sample, [x[0], x[1]], type),
+            num_parallel_calls=1,
+            deterministic=False,
+        )
+        print(len(ds))
+        # print(list(ds.as_numpy_iterator()))
 
         return (
-            tf.data.Dataset.from_tensor_slices(files)
-            .repeat(repeat)
-            .map(
-                lambda x: tf.py_function(self.get_sample, [x[0], x[1]], type),
-                deterministic=False,
-            )
+            ds 
         )
 
     def get_sample(self, image_file, label_file):
+        # print(image_file, label_file)
         img = np.load(image_file.numpy())
         y = np.load(label_file.numpy())
 
@@ -244,8 +252,29 @@ class ImageInputGeneratorMulticlass(object):
         if seed is not None:
             np.random.seed(seed)
 
+        # option-1 #####################
+        '''
         datasets = list(map(lambda x: self.createDSFromFiles(*x), zip(files, repeats)))
         final_dataset = tf.data.experimental.sample_from_datasets(datasets)
+        '''
+        ################################
+
+        # option-2 #####################
+        all_files = []
+        for i, fp in enumerate(files): all_files += fp*repeats[i]   
+        if self.give_idx:
+            type = ["float32", "float32", "string", "string"]
+        else:
+            type = ["float32", "float32"]
+
+        final_dataset = tf.data.Dataset.from_tensor_slices(all_files).repeat(1).shuffle(len(all_files)).map(
+            lambda x: tf.py_function(self.get_sample, [x[0], x[1]], type),
+            num_parallel_calls=1,
+            deterministic=False,
+        ) 
+        print(len(final_dataset))
+        #################################
+      
         return final_dataset.batch(self.batch_size).prefetch(
             tf.data.experimental.AUTOTUNE
         )

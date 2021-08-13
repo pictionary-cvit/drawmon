@@ -7,7 +7,7 @@ from tbpp_model import TBPP512, TBPP512_dense, TBPP512_dense_separable
 
 
 from pictText_utils import Generator
-from data_pictText import InputGenerator, ImageInputGenerator
+from data_pictText import InputGenerator, ImageInputGenerator, ImageInputGeneratorMulticlass
 
 from tbpp_utils import PriorUtil
 
@@ -105,10 +105,13 @@ priors_wh = tf.Variable(prior_util.priors_wh/prior_util.image_size, dtype=tf.flo
 priors_variances = tf.Variable(prior_util.priors_variances, dtype=tf.float32)
 
 
-gen_val = ImageInputGenerator(data_path, batch_size, data_split)
+if num_classes > 2 and data_split == 'train':
+    gen_val = ImageInputGeneratorMulticlass(data_path, batch_size, data_split, give_idx=False)
+else:
+    gen_val = ImageInputGenerator(data_path, batch_size, data_split, give_idx=False)
 
 dataset_val = gen_val.get_dataset()
-print(f"Number of validation batches: {len(dataset_val)}")
+# print(f"Number of validation batches: {len(dataset_val)}")
 
 
 
@@ -214,6 +217,10 @@ def evaluate(class_idx = -1, best_epoch_base=0, isCreateTfSummary=True):
                 y_true.append(truths)
                 if (res.shape[0] != 0): isAnyPredictions = True
                 y_pred.append(res)
+
+            if (ii*batch_size > 5000):
+                print(f"dataset_{data_split} size is too large (>5000), continuing to next epoch.....")
+                break
         
         if (isAnyPredictions == False):
             # No predictions for the whole val-set
