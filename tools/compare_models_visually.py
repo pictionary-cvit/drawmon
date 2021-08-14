@@ -167,12 +167,12 @@ for ii, (images, data) in enumerate(dataset_val):
         truthsB = prior_utilB.decode(data[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
         
         # save model-A predictions
-        renderA = renderPreds(np.array([images[i]]), np.array([resA]), np.array([truthsA]))
+        renderA = renderPreds(np.array([images[i]]), np.array([resA]), prior_utilA, np.array([truthsA]))
         filenameA = f"{saveA}/{sample_count}.png"
         cv2.imwrite(filenameA, renderA[0])
 
         # save model-B predictions
-        renderB = renderPreds(np.array([images[i]]), np.array([resB]), np.array([truthsB]))
+        renderB = renderPreds(np.array([images[i]]), np.array([resB]), prior_utilB, np.array([truthsB]))
         filenameB = f"{saveB}/{sample_count}.png"
         cv2.imwrite(filenameB, renderB[0])
 
