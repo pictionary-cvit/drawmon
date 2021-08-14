@@ -1,9 +1,9 @@
 import sys
+import os
 sys.path.append(os.path.join(os.path.dirname(__file__),'../'))
 
 import numpy as np
 import tensorflow as tf
-import os
 
 from tbpp_model import TBPP512, TBPP512_dense, TBPP512_dense_separable
 from tbpp_utils import PriorUtil
