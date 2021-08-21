@@ -64,6 +64,8 @@ num_classes=num_classes)
 prior_util = PriorUtil(model)
 classes = ["bg", "text", "number", "symbol", "circle"]
 
+os.makedirs(save_dir, exist_ok=True)
+
 def renderPreds(imgs, truths=None):   
     rends = []
     for i in range(imgs.shape[0]):
