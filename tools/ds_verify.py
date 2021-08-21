@@ -105,7 +105,7 @@ dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val
 
 sample_count = 0
 for dist_inputs in dist_dataset_train:
-    save_prob = print(random.uniform(0, 1))
+    save_prob = random.uniform(0, 1)
     if save_prob < 0.5:    
         x, y_true = dist_inputs
         x_list = mirrored_strategy.experimental_local_results(x)
