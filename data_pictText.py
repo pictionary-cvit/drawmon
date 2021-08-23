@@ -103,8 +103,13 @@ class InputGenerator(object):
 class ImageInputGenerator(object):
     """Model input generator with images i.e without using memcache"""
 
-    def __init__(self, data_path, batch_size, dataset="train", give_idx=False):
-        self.data_path = os.path.join(data_path, dataset)
+    def __init__(self, data_path, batch_size, dataset="train", give_idx=False, anomaly_class=None):
+        
+        if anomaly_class is not None:
+            self.data_path = os.path.join(data_path, dataset, anomaly_class)
+            assert(give_idx == False)
+        else: self.data_path = os.path.join(data_path, dataset)
+        
         self.batch_size = batch_size
         self.dataset = dataset
         self.num_samples = len(glob.glob1(self.data_path, "*.npy")) // 2

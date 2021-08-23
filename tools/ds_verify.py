@@ -1,6 +1,8 @@
 import sys
 import os
 import random
+
+from tensorflow.python.autograph.pyct.templates import replace_as_expression
 sys.path.append(os.path.join(os.path.dirname(__file__),'../'))
 
 import numpy as np
@@ -93,13 +95,34 @@ def renderPreds(imgs, truths=None):
 if num_classes == 2:
     gen_train = ImageInputGenerator(data_path, batch_size, "train", give_idx=True)
     gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=True)
+    dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 else:
-    gen_train = ImageInputGeneratorMulticlass(
-        data_path, batch_size, "train", give_idx=False
-    )
-    gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=False)
+    # gen_train = ImageInputGeneratorMulticlass(
+    #     data_path, batch_size, "train", give_idx=False
+    # )
+    gen_train_real = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="real")
+    gen_train_number = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="number")
+    gen_train_text = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="text")
+    gen_train_circle = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="circle")
+    gen_train_symbol = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="symbol")
 
-dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
+
+    # datasets = [gen_train_real.get_dataset(), 
+    #     gen_train_number.get_dataset(), 
+    #     gen_train_text.get_dataset(), 
+    #     gen_train_circle.get_dataset(), 
+    #     gen_train_symbol.get_dataset()]
+
+    # lens = list(map(lambda x: len(x), datasets))
+    # repeats = list(map(lambda x: max(lens) // x, lens))
+    # datasets = list(map(lambda x: x[0].repeat(x[1]), list(zip(datasets, repeats))))
+    
+    # dataset_train = tf.data.experimental.sample_from_datasets(datasets)
+    
+    dataset_train = gen_train_text.get_dataset()
+
+    gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=False)
+    dataset_val = gen_val.get_dataset()
 
 dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
 dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val)
