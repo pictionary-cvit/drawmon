@@ -69,12 +69,13 @@ os.makedirs(save_dir, exist_ok=True)
 def renderPreds(imgs, truths=None):   
     rends = []
     for i in range(imgs.shape[0]):
+        res_truth = prior_util.decode(truths[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
+
         fig = plt.figure(figsize=[9]*2)
         im = np.pad(np.reshape(imgs[i], (imgs[i].shape[0], imgs[i].shape[1])), pad_width=(15), constant_values=(0))
         print(im.shape)
         plt.imshow(1-im, cmap='gray')
         
-        res_truth = truths[i]    
         prior_util.plot_results([], gt_data_decoded=res_truth, show_labels=False, classes=classes, hw = (imgs[i].shape[0], imgs[i].shape[1]), pad=15)
 
         plt.axis('off')
