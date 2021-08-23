@@ -260,27 +260,25 @@ class ImageInputGeneratorMulticlass(object):
             np.random.seed(seed)
 
         # option-1 #####################
-        '''
         datasets = list(map(lambda x: self.createDSFromFiles(*x), zip(files, repeats)))
         final_dataset = tf.data.experimental.sample_from_datasets(datasets)
-        '''
         ################################
 
-        # option-2 #####################
-        all_files = []
-        for i, fp in enumerate(files): all_files += fp*repeats[i]   
-        if self.give_idx:
-            type = ["float32", "float32", "string", "string"]
-        else:
-            type = ["float32", "float32"]
+        # # option-2 #####################
+        # all_files = []
+        # for i, fp in enumerate(files): all_files += fp*repeats[i]   
+        # if self.give_idx:
+        #     type = ["float32", "float32", "string", "string"]
+        # else:
+        #     type = ["float32", "float32"]
 
-        final_dataset = tf.data.Dataset.from_tensor_slices(all_files).repeat(1).shuffle(len(all_files)).map(
-            lambda x: tf.py_function(self.get_sample, [x[0], x[1]], type),
-            num_parallel_calls=1,
-            deterministic=False,
-        ) 
-        print(len(final_dataset))
-        #################################
+        # final_dataset = tf.data.Dataset.from_tensor_slices(all_files).repeat(1).shuffle(len(all_files)).map(
+        #     lambda x: tf.py_function(self.get_sample, [x[0], x[1]], type),
+        #     num_parallel_calls=1,
+        #     deterministic=False,
+        # ) 
+        # print(len(final_dataset))
+        # #################################
       
         return final_dataset.batch(self.batch_size).prefetch(
             tf.data.experimental.AUTOTUNE

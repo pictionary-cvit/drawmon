@@ -97,14 +97,14 @@ if num_classes == 2:
     gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=True)
     dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 else:
-    # gen_train = ImageInputGeneratorMulticlass(
-    #     data_path, batch_size, "train", give_idx=False
-    # )
-    gen_train_real = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="real")
-    gen_train_number = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="number")
-    gen_train_text = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="text")
-    gen_train_circle = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="circle")
-    gen_train_symbol = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="symbol")
+    gen_train = ImageInputGeneratorMulticlass(
+        data_path, batch_size, "train", give_idx=False
+    )
+    # gen_train_real = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="real")
+    # gen_train_number = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="number")
+    # gen_train_text = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="text")
+    # gen_train_circle = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="circle")
+    # gen_train_symbol = ImageInputGenerator(data_path, batch_size, "train", give_idx=False, anomaly_class="symbol")
 
 
     # datasets = [gen_train_real.get_dataset(), 
@@ -119,7 +119,7 @@ else:
     
     # dataset_train = tf.data.experimental.sample_from_datasets(datasets)
     
-    dataset_train = gen_train_text.get_dataset()
+    dataset_train = gen_train.get_dataset()
 
     gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=False)
     dataset_val = gen_val.get_dataset()
