@@ -103,7 +103,7 @@ class InputGenerator(object):
 class ImageInputGenerator(object):
     """Model input generator with images i.e without using memcache"""
 
-    def __init__(self, data_path, batch_size, dataset="train", give_idx=False, anomaly_class=None):
+    def __init__(self, data_path, batch_size, dataset="train", give_idx=False, anomaly_class=None, create_batch=True):
         
         if anomaly_class is not None:
             self.data_path = os.path.join(data_path, dataset, anomaly_class)
@@ -112,8 +112,9 @@ class ImageInputGenerator(object):
         
         self.batch_size = batch_size
         self.dataset = dataset
-        self.num_samples = len(glob.glob1(self.data_path, "*.npy")) // 2
+        self.num_samples = len(list(set(glob.glob1(self.data_path, "*.npy")))) // 2
         self.give_idx = give_idx
+        self.create_batch = create_batch
 
     def get_sample(self, idx):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
@@ -152,7 +153,9 @@ class ImageInputGenerator(object):
             num_parallel_calls=num_parallel_calls,
             deterministic=False,
         )
-        ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+
+        if self.create_batch:
+            ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 	
         print(len(ds))
 
@@ -166,7 +169,7 @@ class ImageInputGeneratorMulticlass(object):
         self.data_path = data_path
         self.split = split
         self.batch_size = batch_size
-        self.num_samples = len(glob.glob(os.path.join(self.data_path, self.split, "**", "*.png"), recursive=True))
+        self.num_samples = len(list(set(glob.glob(os.path.join(self.data_path, self.split, "**", "*.png"), recursive=True))))
         self.give_idx = give_idx
 
     @staticmethod
@@ -183,11 +186,10 @@ class ImageInputGeneratorMulticlass(object):
             dir_name = "/".join(label_file.split("/")[:-1])
             number = label_file.split("/")[-1].split(".")[0].split("_")[-1]
             filename = f"sample_{number}.npy"
-            return os.path.join(dir_name, filename)
+            return os.path.join(dir_name, filename), label_file
 
-        imgs = map(getImageName, labels)
-
-        return list(zip(set(imgs), set(labels)))
+        labels = list(set(labels))
+        return list(map(getImageName, labels))
 
     def createDSFromFiles(self, files, repeat):
         print("creating DS from files........")
@@ -294,7 +296,7 @@ class ImageInputGeneratorWithResampling(object):
         self.data_path = os.path.join(data_path, dataset)
         self.batch_size = batch_size
         self.dataset = dataset
-        self.num_samples = len(glob.glob1(self.data_path, "*.png"))
+        self.num_samples = len(list(set(glob.glob1(self.data_path, "*.png"))))
 
     def get_sample(self, idx):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
