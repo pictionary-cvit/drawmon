@@ -1,5 +1,6 @@
 import sys
 import os
+import cv2
 sys.path.append(os.path.join(os.path.dirname(__file__),'../'))
 
 import numpy as np
@@ -12,6 +13,9 @@ from pictText_utils import Generator
 from data_pictText import InputGenerator
 
 import argparse
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
 
 data_path = "/home/sparsh.garg/nikhil/pictionary_redux/dataset/data_multiclass_circle"
 batch_size = 8
@@ -30,6 +34,7 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--data', type=str, required=False, default=data_path)
 parser.add_argument('--nc', type=int, required=False, default=num_classes)
 parser.add_argument('--bs', type=int, required=False, default=batch_size)
+parser.add_argument('--ct', type=float, required=False, default=0.4)
 parser.add_argument('--tsave', type=str, required=False, default=save_path)
 parser.add_argument('--vsave', type=str, required=False, default=save_path)
 parser.add_argument('--scale', type=float, required=False, default=scale)
@@ -54,6 +59,7 @@ print(args)
 
 data_path = args.data
 batch_size = args.bs
+confidence_threshold = args.ct
 train_save_path = args.tsave
 val_save_path = args.vsave
 scale = args.scale
@@ -91,6 +97,32 @@ train_examples = None
 train_labels = None
 count = 0
 
+classes = ["bg", "text", "number", "symbol", "circle"]
+
+def renderPreds(imgs, truths=None):   
+    rends = []
+    for i in range(imgs.shape[0]):
+        res_truth = prior_util.decode(truths[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
+
+        fig = plt.figure(figsize=[9]*2)
+        im = np.pad(np.reshape(imgs[i], (imgs[i].shape[0], imgs[i].shape[1])), pad_width=(15), constant_values=(0))
+        print(im.shape)
+        plt.imshow(1-im, cmap='gray')
+        
+        prior_util.plot_results([], gt_data_decoded=res_truth, show_labels=False, classes=classes, hw = (imgs[i].shape[0], imgs[i].shape[1]), pad=15)
+
+        plt.axis('off')
+        fig.canvas.draw()
+
+        # Now we can save it to a numpy array.
+        data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        rends.append(data)
+
+        plt.close('all')
+
+    return np.array(rends)
+
 
 if not os.path.exists(f"{train_save_path}"):
     os.makedirs(f"{train_save_path}")
@@ -105,10 +137,11 @@ for i, train_sample in enumerate(iterator_train):
         x, y_true = train_sample
         # train_examples = np.concatenate((train_examples, x), axis=0)
         # train_labels = np.concatenate((train_labels, y_true), axis=0)
+        rends = renderPreds(x, y_true)
     
         for i in range(x.shape[0]):
             np.save(f"{train_save_path}/sample_{count}.npy", x[i])
-            tf.keras.preprocessing.image.save_img(f"{train_save_path}/sample_{count}.png", x[i], scale=False)
+            cv2.imwrite(f"{train_save_path}/sample_{count}.png", rends[i])
             # img = tf.keras.preprocessing.image.load_img(f"{train_save_path}/{count}.png", grayscale=True)
             # tf.keras.preprocessing.image.img_to_array(img)
             np.save(f"{train_save_path}/label_{count}.npy", y_true[i])
@@ -125,9 +158,11 @@ else:
         try:
             x, y_true = val_sample
 
+            rends = renderPreds(x, y_true)
+
             for i in range(x.shape[0]):
                 np.save(f"{val_save_path}/sample_{count}.npy", x[i])
-                tf.keras.preprocessing.image.save_img(f"{val_save_path}/sample_{count}.png", x[i], scale=False)
+                cv2.imwrite(f"{val_save_path}/sample_{count}.png", rends[i])
                 np.save(f"{val_save_path}/label_{count}.npy", y_true[i])
                 count += 1
         except:
