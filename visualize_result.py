@@ -33,6 +33,7 @@ gen_val = ImageInputGenerator(
 ).get_dataset()
 
 for i, item in enumerate(gen_val):
+    print(item[1].shape)
     boxes = prior_util.decode(
         item[1].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
     )
