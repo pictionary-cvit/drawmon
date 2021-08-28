@@ -35,7 +35,7 @@ gen_val = ImageInputGenerator(
 for i, item in enumerate(gen_val):
     print(item[1].shape)
     boxes = prior_util.decode(
-        item[1].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
+        item[1][0].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
     )
     for box in boxes:
         p = Polygon(
