@@ -47,14 +47,13 @@ for i, item in enumerate(gen_val):
     pred = model(item[0])
 
     boxes = prior_util.decode(
-        pred[0].numpy(), class_idx=-1, confidence_threshold=0.6, fast_nms=False
+        pred[0].numpy(), class_idx=-1, confidence_threshold=0.4, fast_nms=False
     )
 
     print(boxes)
 
     for box in boxes:
         box_coords = minMaxTo4Coords(box[:4] * 511)
-        print(box_coords)
         p = Polygon(
             list(box_coords),
             closed=True,
@@ -71,4 +70,4 @@ for i, item in enumerate(gen_val):
     plt.close()
 
     with open(f"{args.output_path}/{i}.txt", "w") as fil:
-        json.dump(item[1].numpy().tolist(), fil)
+        json.dump(boxes.tolist(), fil)
