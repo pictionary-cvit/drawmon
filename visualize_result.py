@@ -5,12 +5,10 @@ import argparse
 import json
 
 parser = argparse.ArgumentParser("visualise")
-parser.add_argument("--data-path", action=str, dest="data_path", required=True)
-parser.add_argument("--batch-size", action=int, dest="batch_size", default=1)
-parser.add_argument(
-    "--output-path", action=str, dest="output_path", default="./renders"
-)
-args = parser.parse_args(sys.argv)
+parser.add_argument("--data-path", type=str, dest="data_path", required=True)
+parser.add_argument("--batch-size", type=int, dest="batch_size", default=1)
+parser.add_argument("--output-path", type=str, dest="output_path", default="./renders")
+args = parser.parse_args()
 
 # model = TBPP512_dense_separable(
 #     input_shape=(512, 512, 1),
