@@ -64,7 +64,7 @@ for i, item in enumerate(tqdm(gen_val)):
         ax.add_patch(p)
 
     plt.imshow(1 - item[0].numpy()[0, :, :, 0], cmap="gray")
-
+    plt.axis("off")
     plt.savefig(f"{args.output_path}/{i}.png")
     plt.close()
 
