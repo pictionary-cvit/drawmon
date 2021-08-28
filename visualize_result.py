@@ -1,3 +1,4 @@
+from tbpp_model import TBPP512_dense_separable
 from matplotlib.patches import Polygon
 from ssd_utils import PriorUtil
 import sys
