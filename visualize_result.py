@@ -42,7 +42,7 @@ def minMaxTo4Coords(box):
 
 
 classes = ["bg", "text", "number", "symbol", "circle"]
-colors = ["red", "blue", "green", "pink"]
+colors = ["red", "#48f7ef", "green", "brown"]
 
 for i, item in enumerate(tqdm(gen_val)):
     pred = model(item[0])
