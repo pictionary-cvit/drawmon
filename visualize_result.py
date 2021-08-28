@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 from data_pictText import ImageInputGenerator
 import argparse
 import json
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser("visualise")
 parser.add_argument("--data-path", type=str, dest="data_path", required=True)
@@ -43,14 +44,12 @@ def minMaxTo4Coords(box):
 classes = ["bg", "text", "number", "symbol", "circle"]
 colors = ["red", "blue", "green", "pink"]
 
-for i, item in enumerate(gen_val):
+for i, item in enumerate(tqdm(gen_val)):
     pred = model(item[0])
 
     boxes = prior_util.decode(
         pred[0].numpy(), class_idx=-1, confidence_threshold=0.4, fast_nms=False
     )
-
-    print(boxes)
 
     for box in boxes:
         box_coords = minMaxTo4Coords(box[:4] * 511)
