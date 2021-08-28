@@ -33,5 +33,6 @@ for i, item in enumerate(gen_val):
     plt.savefig(f"{args.output_path}/{i}.png")
     plt.close()
 
+    print(item[1].numpy())
     with open(f"{args.output_path}/{i}.txt", "w") as fil:
         json.dump(item[1].numpy(), fil)
