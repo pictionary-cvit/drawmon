@@ -32,14 +32,20 @@ gen_val = ImageInputGenerator(
     args.data_path, args.batch_size, "val", give_idx=False
 ).get_dataset()
 
+
+def minMaxTo4Coords(box):
+    return [[box[0], box[1]], [box[0], box[3]], [box[2], box[3]], [box[2], box[1]]]
+
+
 for i, item in enumerate(gen_val):
     boxes = prior_util.decode(
         item[1][0].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
     )
     for box in boxes:
-        print(box)
+        box_coords = minMaxTo4Coords(box[:4] * 511)
+        print(box_coords)
         p = Polygon(
-            list(box),
+            list(box_coords),
             closed=True,
             edgecolor="red",
             facecolor="none",
