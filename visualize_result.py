@@ -37,6 +37,9 @@ def minMaxTo4Coords(box):
     return [[box[0], box[1]], [box[0], box[3]], [box[2], box[3]], [box[2], box[1]]]
 
 
+classes = ["bg", "text", "number", "symbol", "circle"]
+colors = ["red", "blue", "green", "pink"]
+
 for i, item in enumerate(gen_val):
     boxes = prior_util.decode(
         item[1][0].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
@@ -47,8 +50,9 @@ for i, item in enumerate(gen_val):
         p = Polygon(
             list(box_coords),
             closed=True,
-            edgecolor="red",
+            edgecolor=colors[box[-1] - 1],
             facecolor="none",
+            linewidth=5,
         )
         ax = plt.gca()
         ax.add_patch(p)
