@@ -47,7 +47,7 @@ for i, item in enumerate(gen_val):
     pred = model(item[0])
 
     boxes = prior_util.decode(
-        pred[0].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
+        pred[0].numpy(), class_idx=-1, confidence_threshold=0.4, fast_nms=False
     )
 
     print(boxes)
