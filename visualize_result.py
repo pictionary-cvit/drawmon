@@ -1,6 +1,6 @@
 from tbpp_model import TBPP512_dense_separable
 from matplotlib.patches import Polygon
-from ssd_utils import PriorUtil
+from tbpp_utils import PriorUtil
 import sys
 from matplotlib import pyplot as plt
 from data_pictText import ImageInputGenerator
@@ -33,7 +33,9 @@ gen_val = ImageInputGenerator(
 ).get_dataset()
 
 for i, item in enumerate(gen_val):
-    boxes = prior_util.decode(item[1].numpy(), confidence_threshold=0.3, fast_nms=False)
+    boxes = prior_util.decode(
+        item[1].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
+    )
     for box in boxes:
         p = Polygon(
             list(box),
