@@ -29,9 +29,9 @@ gen_val = ImageInputGenerator(
 
 for i, item in enumerate(gen_val):
     plt.imshow(item[0].numpy()[0, :, :, 0])
-    plt.title(item[1])
+    plt.title(item[1].numpy())
     plt.savefig(f"./{args.output_path}/{i}.png")
     plt.close()
 
     with open(f"./{args.output_path}/{i}.txt", "w") as fil:
-        json.dump(item[1], fil)
+        json.dump(item[1].numpy(), fil)
