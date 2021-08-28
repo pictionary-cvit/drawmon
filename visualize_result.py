@@ -9,6 +9,7 @@ import json
 
 parser = argparse.ArgumentParser("visualise")
 parser.add_argument("--data-path", type=str, dest="data_path", required=True)
+parser.add_argument("--model-path", type=str, dest="model_path", required=True)
 parser.add_argument("--batch-size", type=int, dest="batch_size", default=1)
 parser.add_argument("--output-path", type=str, dest="output_path", default="./renders")
 args = parser.parse_args()
@@ -25,6 +26,8 @@ model = TBPP512_dense_separable(
     num_classes=5,
     activation="tfa_mish",
 )
+
+model.load_weights(args.model_path)
 
 prior_util = PriorUtil(model)
 
@@ -46,6 +49,8 @@ for i, item in enumerate(gen_val):
     boxes = prior_util.decode(
         pred[0].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
     )
+
+    print(boxes)
 
     for box in boxes:
         box_coords = minMaxTo4Coords(box[:4] * 511)
