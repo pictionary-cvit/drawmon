@@ -41,9 +41,12 @@ classes = ["bg", "text", "number", "symbol", "circle"]
 colors = ["red", "blue", "green", "pink"]
 
 for i, item in enumerate(gen_val):
+    pred = model(item[0])
+
     boxes = prior_util.decode(
-        item[1][0].numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
+        pred.numpy(), class_idx=-1, confidence_threshold=0.3, fast_nms=False
     )
+
     for box in boxes:
         box_coords = minMaxTo4Coords(box[:4] * 511)
         print(box_coords)
