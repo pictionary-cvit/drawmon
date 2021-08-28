@@ -28,7 +28,7 @@ gen_val = ImageInputGenerator(
 ).get_dataset()
 
 for i, item in enumerate(gen_val):
-    plt.imshow(item[0])
+    plt.imshow(item[0][0, :, :, 0])
     plt.title(item[1])
     plt.savefig(f"./{args.output_path}/{i}.png")
     plt.close()
