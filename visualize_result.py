@@ -52,12 +52,12 @@ for i, item in enumerate(gen_val):
             closed=True,
             edgecolor=colors[int(box[-1] - 1)],
             facecolor="none",
-            linewidth=5,
+            linewidth=3,
         )
         ax = plt.gca()
         ax.add_patch(p)
 
-    plt.imshow(item[0].numpy()[0, :, :, 0], cmap="gray")
+    plt.imshow(1 - item[0].numpy()[0, :, :, 0], cmap="gray")
 
     plt.savefig(f"{args.output_path}/{i}.png")
     plt.close()
