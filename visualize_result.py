@@ -50,7 +50,7 @@ for i, item in enumerate(gen_val):
         p = Polygon(
             list(box_coords),
             closed=True,
-            edgecolor=colors[box[-1] - 1],
+            edgecolor=colors[int(box[-1] - 1)],
             facecolor="none",
             linewidth=5,
         )
