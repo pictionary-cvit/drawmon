@@ -5,7 +5,7 @@ from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import concatenate
 
-from utils.layers import leaky_relu, Mish
+from utils.layers import leaky_relu, Mish, tfa_mish
 
 
 def bn_acti_conv(x, filters, kernel_size=1, stride=1, padding='same', activation='relu'):
@@ -38,6 +38,8 @@ def dsod300_body(x, activation='relu'):
     
     if activation == 'leaky_relu':
         activation = leaky_relu
+    if activation == 'tfa_mish':
+        activation = tfa_mish
     
     growth_rate = 48
     compression = 1.0
@@ -99,7 +101,8 @@ def dsod512_body(x, activation='relu'):
     
     if activation == 'leaky_relu':
         activation = leaky_relu
-    
+    if activation == 'tfa_mish':
+        activation = tfa_mish
 
     growth_rate = 48
     compression = 1.0
@@ -166,7 +169,9 @@ def ssd384x512_dense_body(x, activation='relu'):
     
     if activation == 'leaky_relu':
         activation = leaky_relu
-    
+    if activation == 'tfa_mish':
+        activation = tfa_mish   
+ 
     growth_rate = 32
     compression = 1.0
     source_layers = []

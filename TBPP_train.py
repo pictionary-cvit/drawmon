@@ -107,6 +107,8 @@ parser.add_argument(
 )
 parser.add_argument("--mxRep", type=int, required=False, default=3)
 
+parser.add_argument('--baseline', type=str, required=False, default="tbppds")
+
 args = parser.parse_args()
 print(args)
 
@@ -144,6 +146,7 @@ window_size_ub = args.wub
 is_hard_mining = args.isHM
 
 max_repeat = args.mxRep
+baseline = args.baseline
 
 tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices("GPU")) > 0
@@ -157,18 +160,25 @@ mirrored_strategy = tf.distribute.MirroredStrategy()
 
 # TextBoxes++
 with mirrored_strategy.scope():
-    model = TBPP512_dense_separable(
-        input_shape=(512, 512, 1),
-        softmax=True,
-        scale=scale,
-        isQuads=isQuads,
-        isRbb=isRbb,
-        num_dense_segs=num_dense_segs,
-        use_prev_feature_map=use_prev_feature_map,
-        num_multi_scale_maps=num_multi_scale_maps,
-        num_classes=num_classes,
-        activation=activation,
-    )
+    if baseline == "tbppds":
+        model = TBPP512_dense_separable(
+            input_shape=(512, 512, 1),
+            softmax=True,
+            scale=scale,
+            isQuads=isQuads,
+            isRbb=isRbb,
+            num_dense_segs=num_dense_segs,
+            use_prev_feature_map=use_prev_feature_map,
+            num_multi_scale_maps=num_multi_scale_maps,
+            num_classes=num_classes,
+            activation=activation,
+        )
+
+    if baseline == "tbpp":
+        model = TBPP512(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_classes=num_classes)
+
+    if baseline == "dsod":
+        model = TBPP512_dense(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_classes=num_classes, activation=activation)
 
     # optimizer = keras.optimizers.SGD(lr=1e-3, momentum=0.9, decay=0, nesterov=True)
     optimizer = keras.optimizers.Adam(
