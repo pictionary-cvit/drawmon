@@ -54,6 +54,8 @@ parser.add_argument('--className', type=str, required=False, default="text")
 parser.add_argument('--mVal', type=eval,
                       choices=[True, False], required=False, default='True')
 
+parser.add_argument('--baseline', type=str, required=False, default="tbppds")
+
 args = parser.parse_args()
 print(args)
 
@@ -75,11 +77,18 @@ augmented = args.RorA
 class_name = args.className
 
 makeVal = args.mVal
+baseline = args.baseline
 
-model = TBPP512_dense_separable(input_shape=(512, 512, 1), scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes)
+if baseline == "tbppds":
+    model = TBPP512_dense_separable(input_shape=(512, 512, 1), scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes)
+if baseline == "tbpp":
+    model = TBPP512(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_classes=num_classes) 
+if baseline == "dsod":
+    model = TBPP512_dense(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_classes=num_classes)
+    
 
-with open(f"{save_path}/model_args.txt", "w") as f:
-    print(args, file=f)
+# with open(f"{save_path}/model_args.txt", "w") as f:
+#    print(args, file=f)
 
 prior_util = PriorUtil(model)
 
@@ -137,11 +146,12 @@ for i, train_sample in enumerate(iterator_train):
         x, y_true = train_sample
         # train_examples = np.concatenate((train_examples, x), axis=0)
         # train_labels = np.concatenate((train_labels, y_true), axis=0)
-        rends = renderPreds(x, y_true)
+        # rends = renderPreds(x, y_true)
     
         for i in range(x.shape[0]):
             np.save(f"{train_save_path}/sample_{count}.npy", x[i])
-            cv2.imwrite(f"{train_save_path}/sample_{count}.png", rends[i])
+            tf.keras.preprocessing.image.save_img(f"{train_save_path}/sample_{count}.png", x[i], scale=False)
+            # cv2.imwrite(f"{train_save_path}/sample_{count}.png", rends[i])
             # img = tf.keras.preprocessing.image.load_img(f"{train_save_path}/{count}.png", grayscale=True)
             # tf.keras.preprocessing.image.img_to_array(img)
             np.save(f"{train_save_path}/label_{count}.npy", y_true[i])
@@ -158,11 +168,12 @@ else:
         try:
             x, y_true = val_sample
 
-            rends = renderPreds(x, y_true)
+            # rends = renderPreds(x, y_true)
 
             for i in range(x.shape[0]):
                 np.save(f"{val_save_path}/sample_{count}.npy", x[i])
-                cv2.imwrite(f"{val_save_path}/sample_{count}.png", rends[i])
+                tf.keras.preprocessing.image.save_img(f"{val_save_path}/sample_{count}.png", x[i], scale=False)
+                # cv2.imwrite(f"{val_save_path}/sample_{count}.png", rends[i])
                 np.save(f"{val_save_path}/label_{count}.npy", y_true[i])
                 count += 1
         except:
