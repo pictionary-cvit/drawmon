@@ -48,7 +48,7 @@ names_list_path = f"{data_split}.txt"
 os.makedirs(output_path, exist_ok=True)
 
 gen = Generator(data_path, padding=0)
-ds_val = gen.getDS(data_split, augmented="**", stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=1)
+ds_val = gen.getDS(data_split, stroke_thickness=2, erase_thickness=20, onlyTxt=False, max_erase_percentage=0.3, num_workers=10, augmented="**", num_classes=num_classes)
 
 batch_size = 5
 gen_val = InputGenerator(ds_val, None, batch_size, 5, encode=False, overlap_threshold=0.5, split=data_split, 
@@ -58,7 +58,8 @@ gen_val = InputGenerator(ds_val, None, batch_size, 5, encode=False, overlap_thre
     isConvertToCentroid=True)
 
 img_count = 0
-for imgs, targets in gen_val.get_dataset():
+ds_iterator = gen_val.get_dataset()
+for imgs, targets in ds_iterator:
     for i in range(imgs.shape[0]):
         try:
             img = imgs[i]
