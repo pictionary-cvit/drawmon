@@ -59,7 +59,13 @@ gen_val = InputGenerator(ds_val, None, batch_size, 5, overlap_threshold=0.5, spl
 
 img_count = 0
 ds_iterator = gen_val.get_dataset()
-for imgs, targets in ds_iterator:
+for ds_sample in ds_iterator:
+    try:
+        imgs, targets = ds_sample
+    except:
+        print("Skipping Sample")
+        continue 
+    
     for i in range(imgs.shape[0]):
         try:
             img = imgs[i]
