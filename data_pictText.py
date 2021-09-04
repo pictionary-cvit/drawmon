@@ -12,6 +12,24 @@ from tensorflow._api.v2 import data
 
 # from pictText_utils import Generator
 
+def convertToCentroid(bb):
+    """
+        bb: (4 coords = 8 values) 4 x 2
+        return cx, cy, w, h
+    """
+    bb = np.array(bb)
+
+    mx, my = np.min(bb, axis=0)
+    Mx, My = np.max(bb, axis=0)
+
+    cx = (mx+Mx)/2
+    cy = (my+My)/2
+
+    w = Mx - mx
+    h = My - my
+
+    return np.array((cx, cy, w, h))
+
 
 class InputGenerator(object):
     """Model input generator for data augmentation."""
@@ -32,6 +50,8 @@ class InputGenerator(object):
         encode=True,
         overlap_threshold=0.5,
         num_classes=2,
+        isFlattenBoxes=True, # if true, change shape of each box from Nx4x2 to Nx8
+        isConvertToCentroid=False
     ):
 
         self.dataset = dataset
@@ -44,6 +64,12 @@ class InputGenerator(object):
         self.encode = encode
         self.overlap_threshold = overlap_threshold
         self.num_classes = num_classes
+
+        # if true, change shape of each box from Nx4x2 to Nx8
+        self.isFlattenBoxes=isFlattenBoxes
+
+         # if true, convert format to cx, cy, w, h (eg. true in case of darknet format)
+        self.isConvertToCentroid = isConvertToCentroid
 
     def stackBatch(self, batch):
         if self.num_classes == 2:
@@ -63,7 +89,13 @@ class InputGenerator(object):
             target = np.array(target, dtype="float32")
             target[:, :, 0] = target[:, :, 0] / self.img_width
             target[:, :, 1] = target[:, :, 1] / self.img_height
-            target = target.reshape(target.shape[0], -1)
+            if (self.isFlattenBoxes): target = target.reshape(target.shape[0], -1)
+            if (self.isConvertToCentroid and self.isFlattenBoxes == False):
+                new_target = []
+                for i in range(target.shape[0]):
+                    new_target.append(convertToCentroid(target[i]))
+                new_target = np.array(new_target) #n x 4
+                target = new_target
 
             # append class 1 => text class
             if self.num_classes == 2:
