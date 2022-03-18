@@ -89,11 +89,11 @@ dataset_val = gen_val.get_dataset()
 
 classes = ["bg", "text", "number", "symbol", "circle"]
 
-def renderPreds(imgs, preds, prior_util, truths=None, only_img = False):   
+def renderPreds(imgs, preds, prior_util, truths=None, only_img = False, pad_width=15):   
     rends = []
     for i in range(imgs.shape[0]):
         fig = plt.figure(figsize=[9]*2)
-        im = np.pad(np.reshape(imgs[i], (imgs[i].shape[0], imgs[i].shape[1])), pad_width=(15), constant_values=(0))
+        im = np.pad(np.reshape(imgs[i], (imgs[i].shape[0], imgs[i].shape[1])), pad_width=(pad_width), constant_values=(0))
         print(im.shape)
         plt.imshow(1-im, cmap='gray')
         
@@ -101,7 +101,7 @@ def renderPreds(imgs, preds, prior_util, truths=None, only_img = False):
             res = preds[i]
             res_truth = truths[i]
             
-            prior_util.plot_results(res, gt_data_decoded=res_truth, show_labels=False, classes=classes, hw = (imgs[i].shape[0], imgs[i].shape[1]), pad=15)
+            prior_util.plot_results(res, gt_data_decoded=res_truth, show_labels=False, classes=classes, hw = (imgs[i].shape[0], imgs[i].shape[1]), pad=pad_width)
 
         plt.axis('off')
         fig.canvas.draw()
@@ -137,8 +137,9 @@ for ii, (images, data) in enumerate(dataset_val):
         truths = prior_util.decode(data[i], class_idx = -1, confidence_threshold = confidence_threshold, fast_nms=False)
                
         # save img
+        render = renderPreds(np.array([images[i]]), None, prior_util, None, True, 0)
         filename = f"{save_i}/{sample_count}.png" # save img
-        cv2.imwrite(filename, images[i])
+        cv2.imwrite(filename, render[0])
 
         # save model gts
         render = renderPreds(np.array([images[i]]), np.array([[]]), prior_util, np.array([truths]))
