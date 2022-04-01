@@ -1,5 +1,7 @@
 from functools import reduce
 import itertools
+from random import random
+from re import S
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -148,7 +150,11 @@ class ImageInputGenerator(object):
         self.give_idx = give_idx
         self.create_batch = create_batch
 
+        self.samples = [i for i in range(self.num_samples)]
+        random.shuffle(self.samples)
+
     def get_sample(self, idx):
+        idx = self.samples[idx]
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
         y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
 
@@ -167,13 +173,23 @@ class ImageInputGenerator(object):
         if seed is not None:
             np.random.seed(seed)
 
+        print(f"Number of samples: {len(self.samples)}")
+
+        assert len(self.samples) >= self.batch_size
+
+        mod = (len(self.samples)) % (self.batch_size)
+        self.samples = self.samples + self.samples[: (self.batch_size - mod)]
+
+        assert (len(self.samples)) % (self.batch_size) == 0
+
+
         type = None
         if self.give_idx:
             type = ["float32", "float32", "int64"]
         else:
             type = ["float32", "float32"]
 
-        ds = tf.data.Dataset.range(self.num_samples).repeat(1).shuffle(self.num_samples)
+        ds = tf.data.Dataset.range(len(self.samples)).repeat(1).shuffle(len(self.samples))
         ds = ds.map(
             lambda x: tf.py_function(
                 self.get_sample,
@@ -390,5 +406,114 @@ class ImageInputGeneratorWithResampling(object):
             deterministic=False,
         )
         ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+
+        return ds
+
+
+class ImageInputGeneratorForCurriculumTraining(object):
+    """Model input generator with images i.e without using memcache"""
+
+    def __init__(
+        self, 
+        data_path, 
+        batch_size,
+        img_wd,
+        img_ht,
+        lower_area_thres,
+        upper_area_thres,
+        prior_util, 
+        ct,
+        class_idx=-1,
+        fast_nms=False,
+        dataset="train", 
+        give_idx=False, 
+        anomaly_class=None, 
+        create_batch=True):
+        
+        if anomaly_class is not None:
+            self.data_path = os.path.join(data_path, dataset, anomaly_class)
+            assert(give_idx == False)
+        else: self.data_path = os.path.join(data_path, dataset)
+        
+        self.IDs = []
+
+        self.batch_size = batch_size
+        self.lower_area_thres = lower_area_thres
+        self.upper_area_thres = upper_area_thres
+        self.img_wd = img_wd
+        self.img_ht = img_ht
+        self.ct = ct
+        self.class_idx = class_idx
+        self.fast_nms = fast_nms
+        self.prior_util = prior_util
+        self.dataset = dataset
+        self.num_samples = len(list(set(glob.glob1(self.data_path, "*.npy")))) // 2
+        self.give_idx = give_idx
+        self.create_batch = create_batch
+
+    def get_sample(self, idx):
+        idx = self.IDs[idx]
+        img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
+        y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
+
+        return img, y, int(idx)
+    
+    def get_curr_area_samples(self):
+        
+        for idx in range(self.num_samples):
+            img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
+            y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
+
+            decoded_y = self.prior_util.decode(
+                y, 
+                class_idx=self.class_idx, 
+                confidence_threshold=self.ct, 
+                fast_nms=self.fast_nms)
+            
+            is_curr_area = False
+            for i in range(len(decoded_y)):
+                box = decoded_y[i][0:4]*(self.img_wd, self.img_ht, self.img_wd, self.img_ht)
+                area = (box[2]-box[0])*(box[3]-box[1])
+                if area >= self.lower_area_thres and area <= self.upper_area_thres:
+                    is_curr_area = True
+
+            if is_curr_area:
+                self.IDs.append(idx)
+        
+    def get_dataset(self, num_parallel_calls=1, seed=1337):
+        import tensorflow as tf
+
+        print(
+            f"Number of {self.dataset} samples at '{self.data_path}': {self.num_samples}"
+        )
+
+        if seed is not None:
+            np.random.seed(seed)
+
+        type = None
+        if self.give_idx:
+            type = ["float32", "float32", "int64"]
+        else:
+            type = ["float32", "float32"]
+
+        self.get_curr_area_samples()
+
+        ds = tf.data.Dataset.range(len(self.IDs)).repeat(1).shuffle(len(self.IDs))
+        ds = ds.map(
+            lambda x: tf.py_function(
+                self.get_sample,
+                [
+                    x,
+                ],
+                type,
+            ),
+            num_parallel_calls=num_parallel_calls,
+            deterministic=False,
+        )
+
+        if self.create_batch:
+            ds = ds.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+	
+        print(len(ds))
 
         return ds

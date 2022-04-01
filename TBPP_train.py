@@ -16,7 +16,7 @@ from tbpp_utils import PriorUtil
 from tbpp_training import TBPPFocalLoss
 
 # from pictText_utils import Generator
-from data_pictText import ImageInputGeneratorMulticlass, InputGenerator
+from data_pictText import ImageInputGeneratorMulticlass, InputGenerator, ImageInputGeneratorForCurriculumTraining
 from data_pictText import ImageInputGenerator, ImageInputGeneratorWithResampling
 
 # from utils.model import load_weights
@@ -60,6 +60,13 @@ decay_factor = 0.0  # No Decay
 isfl = "True"
 neg_pos_ratio = 3.0
 activation = "relu"
+
+img_ht = 512
+img_wd = 512
+is_curriculum_training = False
+
+ar_easy = 1e4
+ar_med = 6e4
 
 parser = argparse.ArgumentParser(description="Hyperparameters")
 parser.add_argument("--data", type=str, required=False, default=data_path)
@@ -345,20 +352,47 @@ def make_train_dataset():
 
     return dist_dataset_train
 
-
-if num_classes == 2:
-    gen_train = ImageInputGenerator(data_path, batch_size, "train", give_idx=True)
+if is_curriculum_training:
+    gen_train_easy = ImageInputGeneratorForCurriculumTraining(
+        data_path, 
+        batch_size, 
+        img_ht=img_ht, 
+        img_wd=img_wd,
+        lower_area_thres=0.0,
+        upper_area_thres=ar_easy,
+        prior_util=prior_util,
+        ct=confidence_threshold, dataset="train", give_idx=False)
+    
+    gen_train_medium = ImageInputGeneratorForCurriculumTraining(
+        data_path, 
+        batch_size, 
+        img_ht=img_ht, 
+        img_wd=img_wd,
+        lower_area_thres=ar_easy,
+        upper_area_thres=ar_med,
+        prior_util=prior_util,
+        ct=confidence_threshold, dataset="train", give_idx=False)
+    
+    gen_train_hard = ImageInputGeneratorForCurriculumTraining(
+        data_path, 
+        batch_size, 
+        img_ht=img_ht, 
+        img_wd=img_wd,
+        lower_area_thres=ar_med,
+        upper_area_thres=1e6,
+        prior_util=prior_util,
+        ct=confidence_threshold, dataset="train", give_idx=False)
+    
     gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=True)
 else:
-    gen_train = ImageInputGeneratorMulticlass(
-        data_path, batch_size, "train", give_idx=False
-    )
-    gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=False)
-
-dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
-
-dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
-dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val)
+    if num_classes == 2:
+        gen_train = ImageInputGenerator(data_path, batch_size, "train", give_idx=True)
+        gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=True)
+    else:
+        gen_train = ImageInputGeneratorMulticlass(
+            data_path, batch_size, "train", give_idx=False
+        )
+        gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=False)
 
 # iterator_train = iter(dataset_train)
 # iterator_val = iter(dataset_val)
@@ -397,6 +431,15 @@ for l in model.layers:
     l.trainable = not l.name in freeze
     if regularizer and l.__class__.__name__.startswith("Conv"):
         model.add_loss(lambda l=l: regularizer(l.kernel))
+
+
+# can be encapsulated into function
+
+dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
+
+dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
+dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val)
+
 
 iteration = 0
 
