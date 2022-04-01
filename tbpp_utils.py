@@ -252,7 +252,7 @@ class PriorUtil(SSDPriorUtil):
         self.merge_overlapping_boxes(results)
         return results
 
-    def merge_box(box1, box2):
+    def merge_box(self, box1, box2):
         return (min(box1[0], box2[0]), min(box1[1], box2[1]), max(box1[0], box2[0]), max(box1[0], box2[0]))
 
     def merge_overlapping_boxes(self, results):
