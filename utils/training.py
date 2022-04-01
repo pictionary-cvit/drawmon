@@ -43,17 +43,17 @@ def tf_iou(boxes1, boxes2):
         x11, y11, x12, y12 = tf.split(tb1, 4, axis=1)
         x21, y21, x22, y22 = tf.split(tb2, 4, axis=1)
 
-        xA = tf.maximum(x11, tf.transpose(x21))
-        yA = tf.maximum(y11, tf.transpose(y21))
-        xB = tf.minimum(x12, tf.transpose(x22))
-        yB = tf.minimum(y12, tf.transpose(y22))
+        xA = tf.maximum(x11, x21)
+        yA = tf.maximum(y11, y21)
+        xB = tf.minimum(x12, x22)
+        yB = tf.minimum(y12, y22)
 
-        interArea = tf.maximum((xB - xA + 1), 0) * tf.maximum((yB - yA + 1), 0)
+        interArea = tf.maximum((xB - xA), 0) * tf.maximum((yB - yA), 0)
 
-        boxAArea = (x12 - x11 + 1) * (y12 - y11 + 1)
-        boxBArea = (x22 - x21 + 1) * (y22 - y21 + 1)
+        boxAArea = (x12 - x11) * (y12 - y11)
+        boxBArea = (x22 - x21) * (y22 - y21)
 
-        iou = interArea / (boxAArea + tf.transpose(boxBArea) - interArea)
+        iou = interArea / (boxAArea + boxBArea - interArea)
 
         return iou
 

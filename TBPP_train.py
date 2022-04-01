@@ -79,7 +79,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--aFR", type=eval, choices=[True, False], required=False, default=aabb_fr
-)
+) # focal-regression-loss for regression
 parser.add_argument(
     "--rDiou", type=eval, choices=[True, False], required=False, default=rbb_diou
 )
@@ -102,7 +102,7 @@ parser.add_argument("--df", type=float, required=False, default=decay_factor)
 parser.add_argument("--npr", type=float, required=False, default=neg_pos_ratio)
 parser.add_argument(
     "--isfl", type=eval, choices=[True, False], required=False, default=isfl
-)
+) #focal-loss for classification
 parser.add_argument("--activation", type=str, required=False, default="relu")
 parser.add_argument("--wlb", type=float, required=False, default=0.45)
 parser.add_argument("--wub", type=float, required=False, default=0.55)
