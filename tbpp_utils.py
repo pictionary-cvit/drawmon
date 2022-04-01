@@ -1,5 +1,6 @@
 """Some utils for TextBoxes++."""
 
+from unittest import result
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -240,7 +241,44 @@ class PriorUtil(SSDPriorUtil):
         else:
             results = np.empty((0,6))
         self.results = results
+
+        # results of format for an image: (number_of_boxes_in_that_image, 5)
+        # 4 is (xmin, ymin, xmax, ymax), left 1 is score of that box
+        # multiply each bbox as: bbox*(w,h,w,h), box_format is 'xyxy'
+        '''
+        Todo: Check overlap(iou) of each box with each box
+        if overlap is greater then iou_thres, then merge those boxes
+        '''
+        self.merge_overlapping_boxes(results)
         return results
+
+    def merge_box(box1, box2):
+        return (min(box1[0], box2[0]), min(box1[1], box2[1]), max(box1[0], box2[0]), max(box1[0], box2[0]))
+
+    def merge_overlapping_boxes(self, results):
+        # results of format for an image: (number_of_boxes_in_that_image, 5)
+        # 4 is (xmin, ymin, xmax, ymax), left 1 is score of that box
+        # multiply each bbox as: bbox*(w,h,w,h), box_format is 'xyxy'
+        if len(results) <= 1:
+            return results
+        for i in range(len(results)-1):
+            for j in range(len(results)):
+                if results[i][0:4] == (-1000, -1000, -1000, -1000):
+                    break
+                if results[j][0:4] == (-1000, -1000, -1000, -1000):
+                    continue
+                overlaps = iou(results[i][0:4], np.array(results[j][0:4]))[0]
+                if overlaps > self.iou_merge_thres:
+                    box = self.merge_box(results[i][0:4], results[j][0:4])
+                    results[i][0:4] = box
+                    results[j][0:4] = (-1000, -1000, -1000, -1000)
+        
+        final_boxes = []
+        for i in range(len(results)):
+            if results[i][0:4] != (-1000, -1000, -1000, -1000):
+                final_boxes.append(results[i])
+        
+        return final_boxes
 
 
     def plot_results(self, results=None, classes=None, show_labels=False, gt_data=None, gt_data_decoded=None, confidence_threshold=None, quads=False, hw = None, pad=0):

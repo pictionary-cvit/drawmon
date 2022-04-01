@@ -1,4 +1,5 @@
 
+from cv2 import log
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -36,6 +37,60 @@ def smooth_l1_loss(y_true, y_pred):
     sq_loss = 0.5 * (y_true - y_pred)**2
     loss = tf.where(tf.less(abs_loss, 1.0), sq_loss, abs_loss - 0.5)
     return tf.reduce_sum(loss, axis=-1)
+
+def tf_iou(boxes1, boxes2):
+    def run(tb1, tb2):
+        x11, y11, x12, y12 = tf.split(tb1, 4, axis=1)
+        x21, y21, x22, y22 = tf.split(tb2, 4, axis=1)
+
+        xA = tf.maximum(x11, tf.transpose(x21))
+        yA = tf.maximum(y11, tf.transpose(y21))
+        xB = tf.minimum(x12, tf.transpose(x22))
+        yB = tf.minimum(y12, tf.transpose(y22))
+
+        interArea = tf.maximum((xB - xA + 1), 0) * tf.maximum((yB - yA + 1), 0)
+
+        boxAArea = (x12 - x11 + 1) * (y12 - y11 + 1)
+        boxBArea = (x22 - x21 + 1) * (y22 - y21 + 1)
+
+        iou = interArea / (boxAArea + tf.transpose(boxBArea) - interArea)
+
+        return iou
+
+    return run(boxes1, boxes2)
+
+def AreaOf(bboxes):
+    """calculate area of bboxes
+        bboxes: (m, 4) for aabb
+        each box is of format (xmin, ymin, xmax, ymax)
+    """
+    x1, y1, x2, y2 = tf.split(bboxes, 4, axis=1)
+    return tf.abs(x2-x1)*tf.abs(y2-y1)
+
+def focal_regression_loss(y_true, y_pred, Aimg, gamma=2.):
+    """Compute focal-regression loss.
+
+    # Arguments
+        y_true: Ground truth, tensor of shape (..., n) eg: (m, 4) for aabb
+        y_pred: Prediction, tensor of shape (..., n)
+        Aimg: Area of image
+    
+    # Assumption
+        - axis-aligned boxes
+        - each box is of format (xmin, ymin, xmax, ymax) and is un-normalized
+
+    # Returns
+        loss: Focal-regression loss, tensor of shape (...)
+    
+    # References
+        [ORDER](https://ml4ad.github.io/files/papers2021/ORDER:%20Open%20World%20Object%20Detection%20on%20Road%20Scenes.pdf)
+    """
+    
+    IOU = tf_iou(y_pred, y_true)
+    sq_loss = (tf.abs(1 - IOU))**2
+    inverse_norm_A = Aimg/AreaOf(y_true)
+    regulating_comp = tf.math.pow(tf.abs(1 - IOU), gamma + tf.math.log(tf.math.log(inverse_norm_A)))
+    return regulating_comp*sq_loss
 
 def shrinkage_loss(y_true, y_pred, a=10.0, c=0.2):
     """Compute Shrikage Loss.

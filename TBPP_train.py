@@ -45,6 +45,7 @@ isRbb = "False"
 
 aabb_diou = "True"
 rbb_diou = "False"
+aabb_fr = "False"
 num_dense_segs = 3  # default = 3
 use_prev_feature_map = "False"  # default = False
 num_multi_scale_maps = 5  # default = 5
@@ -75,6 +76,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--aDiou", type=eval, choices=[True, False], required=False, default=aabb_diou
+)
+parser.add_argument(
+    "--aFR", type=eval, choices=[True, False], required=False, default=aabb_fr
 )
 parser.add_argument(
     "--rDiou", type=eval, choices=[True, False], required=False, default=rbb_diou
@@ -123,6 +127,7 @@ isQuads = args.isQ
 isRbb = args.isR
 
 aabb_diou = args.aDiou
+aabb_fr = args.aFR
 rbb_diou = args.rDiou
 num_dense_segs = args.nds  # default = 3
 use_prev_feature_map = args.isPMap  # default = True
@@ -249,6 +254,7 @@ loss = TBPPFocalLoss(
     priors_wh=priors_wh,
     priors_variances=priors_variances,
     aabb_diou=aabb_diou,
+    aabb_fr=aabb_fr,
     rbb_diou=rbb_diou,
     isfl=isfl,
     neg_pos_ratio=neg_pos_ratio,

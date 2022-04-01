@@ -247,6 +247,9 @@ class PriorUtil(object):
         
         self.model = model
         self.image_size = model.input_shape[1:3]
+
+        # if 2 detected-boxes overlap that much => merge them
+        self.iou_merge_thres = 0.9
         
         num_maps = len(source_layers_names)
         

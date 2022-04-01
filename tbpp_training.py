@@ -9,6 +9,7 @@ from utils.training import (
     focal_loss,
     ciou_loss,
     reduced_focal_loss,
+    focal_regression_loss,
 )
 from ssd_training import compute_metrics
 
@@ -36,6 +37,7 @@ class TBPPFocalLoss(object):
         img_ht=512.0,
         aabb_diou=True,
         rbb_diou=True,
+        aabb_fr=True,
         isfl=True,
         neg_pos_ratio=3.0,
         alpha=[0.002, 0.998],
@@ -53,6 +55,8 @@ class TBPPFocalLoss(object):
 
         self.aabb_diou = aabb_diou
         self.rbb_diou = rbb_diou
+
+        self.aabb_fr = aabb_fr
 
         self.isfl = isfl
         self.neg_pos_ratio = neg_pos_ratio
@@ -233,6 +237,7 @@ class TBPPFocalLoss(object):
 
         aabb_diou = self.aabb_diou
         rbb_diou = self.rbb_diou
+        aabb_fr = self.aabb_fr
 
         batch_size = tf.shape(y_true)[0]
         num_priors = tf.shape(y_true)[1]
@@ -330,7 +335,30 @@ class TBPPFocalLoss(object):
             )  # only for positives
             loc_loss_aabb = pos_loc_loss_aabb / (num_pos + eps)
             loc_loss += aabb_weight * loc_loss_aabb
+        elif aabb_fr:
+            print("Evaluating aabb-focal-regression-loss......")
+            y_true_aabb = y_true[:, :, :4]
+            y_pred_aabb = y_pred[:, :, :4]
 
+            y_true_aabb = tf.vectorized_map(self.to_box, y_true_aabb)
+            y_pred_aabb = tf.vectorized_map(self.to_box, y_pred_aabb)
+
+            y_true_aabb = tf.reshape(y_true_aabb, [-1, 4])
+            y_pred_aabb = tf.reshape(y_pred_aabb, [-1, 4])
+            # => now the boxes are un-normalized and of format (xmin, ymin, xmax, ymax
+
+            # calculating over non-normalized
+            loc_loss_aabb = focal_regression_loss(
+                y_true_aabb * (img_wd, img_ht, img_wd, img_ht),
+                y_pred_aabb * (img_wd, img_ht, img_wd, img_ht),
+                img_ht*img_wd,
+            )
+
+            pos_loc_loss_aabb = tf.reduce_sum(
+                loc_loss_aabb * pos_mask_float
+            )  # only for positives
+            loc_loss_aabb = pos_loc_loss_aabb / (num_pos + eps)
+            loc_loss += aabb_weight * loc_loss_aabb
         else:
             print("Evaluating aabb-l1-loss......")
             loc_loss_aabb = smooth_l1_loss(loc_true[:, :4], loc_pred[:, :4])
