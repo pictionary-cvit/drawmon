@@ -413,6 +413,9 @@ def step(inputs, training=True):
             print(f"Input shape: {x.shape}")
             print(f"GT Shape: {y_true.shape}")
             print(f"Pred Shape: {y_pred.shape}")
+            if (x.shape[0] == 0):
+                print("TRAIN: Not Trainable as batch_size is 0")
+                return 0.0
             metric_values = loss.compute(y_true, y_pred)
             total_loss = metric_values["loss"]
             if len(model.losses):
@@ -426,6 +429,9 @@ def step(inputs, training=True):
 
     else:
         y_pred = model(x, training=True)
+        if (x.shape[0] == 0):
+            print("VAL: Not Trainable as batch_size is 0")
+            return 0.0
         metric_values = loss.compute(y_true, y_pred)
         total_loss = metric_values["loss"]
         if len(model.losses):
