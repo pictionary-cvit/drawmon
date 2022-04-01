@@ -1,6 +1,6 @@
 from functools import reduce
 import itertools
-from random import random
+from random import random, shuffle
 from re import S
 import numpy as np
 import matplotlib.pyplot as plt
@@ -151,7 +151,7 @@ class ImageInputGenerator(object):
         self.create_batch = create_batch
 
         self.samples = [i for i in range(self.num_samples)]
-        random.shuffle(self.samples)
+        shuffle(self.samples)
 
     def get_sample(self, idx):
         idx = self.samples[idx]
