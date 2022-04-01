@@ -353,37 +353,26 @@ def make_train_dataset():
     return dist_dataset_train
 
 if is_curriculum_training:
-    gen_train_easy = ImageInputGeneratorForCurriculumTraining(
-        data_path, 
-        batch_size, 
-        img_ht=img_ht, 
-        img_wd=img_wd,
-        lower_area_thres=0.0,
-        upper_area_thres=ar_easy,
-        prior_util=prior_util,
-        ct=confidence_threshold, dataset="train", give_idx=False)
     
-    gen_train_medium = ImageInputGeneratorForCurriculumTraining(
-        data_path, 
-        batch_size, 
-        img_ht=img_ht, 
-        img_wd=img_wd,
-        lower_area_thres=ar_easy,
-        upper_area_thres=ar_med,
-        prior_util=prior_util,
-        ct=confidence_threshold, dataset="train", give_idx=False)
+    def get_set_area(lower_area_thres, upper_area_thres, dataset_type):
+        return ImageInputGeneratorForCurriculumTraining(
+            data_path, 
+            batch_size, 
+            img_ht=img_ht, 
+            img_wd=img_wd,
+            lower_area_thres=lower_area_thres,
+            upper_area_thres=upper_area_thres,
+            prior_util=prior_util,
+            ct=confidence_threshold, dataset=dataset_type, give_idx=False)
     
-    gen_train_hard = ImageInputGeneratorForCurriculumTraining(
-        data_path, 
-        batch_size, 
-        img_ht=img_ht, 
-        img_wd=img_wd,
-        lower_area_thres=ar_med,
-        upper_area_thres=1e6,
-        prior_util=prior_util,
-        ct=confidence_threshold, dataset="train", give_idx=False)
+    gen_train_easy = get_set_area(0.0, ar_easy, 'train')
+    gen_train_med = get_set_area(ar_easy, ar_med, 'train')
+    gen_train_hard = get_set_area(ar_med, 1e6, 'train')
+
+    gen_val_easy = get_set_area(0.0, ar_easy, 'val')
+    gen_val_med = get_set_area(ar_easy, ar_med, 'val')
+    gen_val_hard = get_set_area(ar_med, 1e6, 'val')
     
-    gen_val = ImageInputGenerator(data_path, batch_size, "val", give_idx=True)
 else:
     if num_classes == 2:
         gen_train = ImageInputGenerator(data_path, batch_size, "train", give_idx=True)
@@ -435,119 +424,135 @@ for l in model.layers:
 
 # can be encapsulated into function
 
-dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
+def train(gen_train, gen_val):
+    dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 
-dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
-dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val)
+    dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
+    dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val)
 
 
-iteration = 0
+    iteration = 0
 
-# @tf.function
-def step(inputs, training=True):
-    if not is_hard_mining:
-        x, y_true = inputs
-    else:
-        x, y_true, _ = inputs
+    # @tf.function
+    def step(inputs, training=True):
+        if not is_hard_mining:
+            x, y_true = inputs
+        else:
+            x, y_true, _ = inputs
 
-    if training:
-        with tf.GradientTape() as tape:
+        if training:
+            with tf.GradientTape() as tape:
+                y_pred = model(x, training=True)
+                print(f"Input shape: {x.shape}")
+                print(f"GT Shape: {y_true.shape}")
+                print(f"Pred Shape: {y_pred.shape}")
+                if (x.shape[0] == 0):
+                    print("TRAIN: Not Trainable as batch_size is 0")
+                    return 0.0
+                metric_values = loss.compute(y_true, y_pred)
+                total_loss = metric_values["loss"]
+                if len(model.losses):
+                    total_loss += tf.add_n(model.losses)
+            gradients = tape.gradient(total_loss, model.trainable_variables)
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+            # if (is_hard_mining): divide_train_dataset(y_true, y_pred, idx)
+
+            return total_loss
+
+        else:
             y_pred = model(x, training=True)
-            print(f"Input shape: {x.shape}")
-            print(f"GT Shape: {y_true.shape}")
-            print(f"Pred Shape: {y_pred.shape}")
             if (x.shape[0] == 0):
-                print("TRAIN: Not Trainable as batch_size is 0")
+                print("VAL: Not Trainable as batch_size is 0")
                 return 0.0
             metric_values = loss.compute(y_true, y_pred)
             total_loss = metric_values["loss"]
             if len(model.losses):
                 total_loss += tf.add_n(model.losses)
-        gradients = tape.gradient(total_loss, model.trainable_variables)
-        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-
-        # if (is_hard_mining): divide_train_dataset(y_true, y_pred, idx)
-
-        return total_loss
-
-    else:
-        y_pred = model(x, training=True)
-        if (x.shape[0] == 0):
-            print("VAL: Not Trainable as batch_size is 0")
-            return 0.0
-        metric_values = loss.compute(y_true, y_pred)
-        total_loss = metric_values["loss"]
-        if len(model.losses):
-            total_loss += tf.add_n(model.losses)
-        return total_loss
+            return total_loss
 
 
-@tf.function
-def distributed_train_step(dist_inputs):
-    per_replica_losses = mirrored_strategy.run(
-        step,
-        args=(
-            dist_inputs,
-            True,
-        ),
-    )
-    return mirrored_strategy.reduce(
-        tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None
-    )
+    @tf.function
+    def distributed_train_step(dist_inputs):
+        per_replica_losses = mirrored_strategy.run(
+            step,
+            args=(
+                dist_inputs,
+                True,
+            ),
+        )
+        return mirrored_strategy.reduce(
+            tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None
+        )
 
 
-@tf.function
-def distributed_val_step(dist_inputs):
-    per_replica_losses = mirrored_strategy.run(
-        step,
-        args=(
-            dist_inputs,
-            False,
-        ),
-    )
-    return mirrored_strategy.reduce(
-        tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None
-    )
+    @tf.function
+    def distributed_val_step(dist_inputs):
+        per_replica_losses = mirrored_strategy.run(
+            step,
+            args=(
+                dist_inputs,
+                False,
+            ),
+        )
+        return mirrored_strategy.reduce(
+            tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None
+        )
 
 
-for k in tqdm(range(initial_epoch, epochs), "total", leave=False):
-    print("\nepoch %i/%i" % (k + 1, epochs))
+    for k in tqdm(range(initial_epoch, epochs), "total", leave=False):
+        print("\nepoch %i/%i" % (k + 1, epochs))
 
-    for dist_inputs in dist_dataset_train:
-        batch_loss = distributed_train_step(dist_inputs)
+        for dist_inputs in dist_dataset_train:
+            batch_loss = distributed_train_step(dist_inputs)
+            if is_hard_mining:
+                x, y_true, idx = dist_inputs
+                x_list = mirrored_strategy.experimental_local_results(x)
+                y_true_list = mirrored_strategy.experimental_local_results(y_true)
+                idx_list = mirrored_strategy.experimental_local_results(idx)
+                assert len(x_list) == len(y_true_list) == len(idx_list)
+                for i, x_i in enumerate(x_list):
+                    y_true_i = y_true_list[i]
+                    idx_i = idx_list[i]
+                    y_pred_i = model(x_i, training=False)
+                    divide_train_dataset(y_true_i, y_pred_i, idx_i)
+
+            with train_summary_writer.as_default():
+                tf.summary.scalar("loss", batch_loss, step=iteration)
+            iteration += 1
+
         if is_hard_mining:
-            x, y_true, idx = dist_inputs
-            x_list = mirrored_strategy.experimental_local_results(x)
-            y_true_list = mirrored_strategy.experimental_local_results(y_true)
-            idx_list = mirrored_strategy.experimental_local_results(idx)
-            assert len(x_list) == len(y_true_list) == len(idx_list)
-            for i, x_i in enumerate(x_list):
-                y_true_i = y_true_list[i]
-                idx_i = idx_list[i]
-                y_pred_i = model(x_i, training=False)
-                divide_train_dataset(y_true_i, y_pred_i, idx_i)
+            dist_dataset_train = make_train_dataset()
+            hard_examples.clear()
+            normal_examples.clear()
 
-        with train_summary_writer.as_default():
-            tf.summary.scalar("loss", batch_loss, step=iteration)
-        iteration += 1
+        model.save_weights(checkdir + "/weights.%03i.h5" % (k + 1,))
 
-    if is_hard_mining:
-        dist_dataset_train = make_train_dataset()
-        hard_examples = []
-        normal_examples = []
+        num_val_batches = 0
+        val_loss = 0.0
+        for dist_inputs in dist_dataset_val:
+            batch_loss = distributed_val_step(dist_inputs)
+            val_loss += batch_loss
+            num_val_batches += 1
+        with val_summary_writer.as_default():
+            tf.summary.scalar("loss", val_loss / num_val_batches, step=iteration)
 
-    model.save_weights(checkdir + "/weights.%03i.h5" % (k + 1,))
+train(gen_train=gen_train, gen_val=gen_val)
 
-    num_val_batches = 0
-    val_loss = 0.0
-    for dist_inputs in dist_dataset_val:
-        batch_loss = distributed_val_step(dist_inputs)
-        val_loss += batch_loss
-        num_val_batches += 1
-    with val_summary_writer.as_default():
-        tf.summary.scalar("loss", val_loss / num_val_batches, step=iteration)
+# for curriculum training
+'''
+initial_epoch = 0
+epochs=33
+train(gen_train=gen_train_easy, gen_val_easy)
 
+initial_epoch = 33
+epochs=66
+train(gen_train=gen_train_med, gen_val_med)
 
+initial_epoch = 66
+epochs=100
+train(gen_train=gen_train_hard, gen_val_hard)
+'''
 # In[ ]:
 if not os.path.exists("./saved_models"):
     os.makedirs("./saved_models")
