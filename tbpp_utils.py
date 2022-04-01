@@ -267,7 +267,7 @@ class PriorUtil(SSDPriorUtil):
                     break
                 if (results[j][0:4] == (-1000, -1000, -1000, -1000)).any():
                     continue
-                overlaps = iou(results[i][0:4], np.array(results[j][0:4]))[0]
+                overlaps = iou(results[i][0:4], np.array([results[j][0:4]]))[0]
                 if overlaps > self.iou_merge_thres:
                     box = self.merge_box(results[i][0:4], results[j][0:4])
                     results[i][0:4] = box
