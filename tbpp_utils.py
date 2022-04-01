@@ -263,9 +263,9 @@ class PriorUtil(SSDPriorUtil):
             return results
         for i in range(len(results)-1):
             for j in range(len(results)):
-                if results[i][0:4] == (-1000, -1000, -1000, -1000):
+                if (results[i][0:4] == (-1000, -1000, -1000, -1000)).any():
                     break
-                if results[j][0:4] == (-1000, -1000, -1000, -1000):
+                if (results[j][0:4] == (-1000, -1000, -1000, -1000)).any():
                     continue
                 overlaps = iou(results[i][0:4], np.array(results[j][0:4]))[0]
                 if overlaps > self.iou_merge_thres:
@@ -275,7 +275,7 @@ class PriorUtil(SSDPriorUtil):
         
         final_boxes = []
         for i in range(len(results)):
-            if results[i][0:4] != (-1000, -1000, -1000, -1000):
+            if (results[i][0:4] != (-1000, -1000, -1000, -1000)).all():
                 final_boxes.append(results[i])
         
         return final_boxes
