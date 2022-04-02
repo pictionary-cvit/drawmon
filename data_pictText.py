@@ -456,7 +456,10 @@ class ImageInputGeneratorForCurriculumTraining(object):
         img = np.load(os.path.join(self.data_path, f"sample_{idx}.npy"))
         y = np.load(os.path.join(self.data_path, f"label_{idx}.npy"))
 
-        return img, y, int(idx)
+        if self.give_idx:
+            return img, y, int(idx)
+        else:
+            return img, y
     
     def get_curr_area_samples(self):
         

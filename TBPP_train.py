@@ -116,6 +116,9 @@ parser.add_argument("--wub", type=float, required=False, default=0.55)
 parser.add_argument(
     "--isHM", type=eval, choices=[True, False], required=False, default="False"
 )
+parser.add_argument(
+    "--isCT", type=eval, choices=[True, False], required=False, default="False"
+)
 parser.add_argument("--mxRep", type=int, required=False, default=3)
 
 parser.add_argument('--baseline', type=str, required=False, default="tbppds")
@@ -156,6 +159,7 @@ activation = args.activation
 window_size_lb = args.wlb
 window_size_ub = args.wub
 is_hard_mining = args.isHM
+is_curriculum_training = args.isCT
 
 max_repeat = args.mxRep
 baseline = args.baseline
@@ -363,7 +367,7 @@ if is_curriculum_training:
             lower_area_thres=lower_area_thres,
             upper_area_thres=upper_area_thres,
             prior_util=prior_util,
-            ct=confidence_threshold, dataset=dataset_type, give_idx=False)
+            ct=confidence_threshold, dataset=dataset_type, give_idx=True)
     
     gen_train_easy = get_set_area(0.0, ar_easy, 'train')
     gen_train_med = get_set_area(ar_easy, ar_med, 'train')
@@ -537,22 +541,24 @@ def train(gen_train, gen_val):
         with val_summary_writer.as_default():
             tf.summary.scalar("loss", val_loss / num_val_batches, step=iteration)
 
-train(gen_train=gen_train, gen_val=gen_val)
 
 # for curriculum training
-'''
-initial_epoch = 0
-epochs=33
-train(gen_train=gen_train_easy, gen_val_easy)
+if is_curriculum_training:
+    initial_epoch = 0
+    epochs=33
+    train(gen_train=gen_train_easy, gen_val=gen_val_easy)
 
-initial_epoch = 33
-epochs=66
-train(gen_train=gen_train_med, gen_val_med)
+    initial_epoch = 33
+    epochs=66
+    train(gen_train=gen_train_med, gen_val=gen_val_med)
 
-initial_epoch = 66
-epochs=100
-train(gen_train=gen_train_hard, gen_val_hard)
-'''
+    initial_epoch = 66
+    epochs=100
+    train(gen_train=gen_train_hard, gen_val=gen_val_hard)
+else:
+    train(gen_train=gen_train, gen_val=gen_val)
+
+
 # In[ ]:
 if not os.path.exists("./saved_models"):
     os.makedirs("./saved_models")
