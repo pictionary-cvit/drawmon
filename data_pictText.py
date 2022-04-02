@@ -380,9 +380,9 @@ class ImageInputGeneratorWithResampling(object):
         samples = min(max_repeat, normal2hard_ratio) * hard_examples + normal_examples
 
         print("assert if hard_examples + normal_examples == num_samples")
-        assert sum(range(self.num_samples)) == (
-            sum(hard_examples) + sum(normal_examples)
-        )
+        # assert sum(range(self.num_samples)) == (
+        #     sum(hard_examples) + sum(normal_examples)
+        # )
 
         print(f"Number of samples: {len(samples)}")
 
