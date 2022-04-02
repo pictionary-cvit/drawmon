@@ -501,6 +501,18 @@ class ImageInputGeneratorForCurriculumTraining(object):
 
         self.get_curr_area_samples()
 
+        shuffle(self.IDs)
+
+        print(f"Number of samples: {len(self.IDs)}")
+
+        assert len(self.IDs) >= self.batch_size
+
+        mod = (len(self.IDs)) % (self.batch_size)
+        self.IDs = self.IDs + self.IDs[: (self.batch_size - mod)]
+
+        assert (len(self.IDs)) % (self.batch_size) == 0
+
+
         ds = tf.data.Dataset.range(len(self.IDs)).repeat(1).shuffle(len(self.IDs))
         ds = ds.map(
             lambda x: tf.py_function(
