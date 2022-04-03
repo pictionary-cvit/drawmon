@@ -251,6 +251,9 @@ class PriorUtil(object):
         # if 2 detected-boxes overlap that much => merge them
         self.iou_merge_thres = 0.9
         
+        # if any of the 2 detected-boxes has that much overlap with their overlapping area => merge those 2 boxes
+        self.overlapping_thres = 0.8
+
         num_maps = len(source_layers_names)
         
         # take parameters from model definition if they exist there
