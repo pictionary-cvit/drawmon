@@ -309,7 +309,7 @@ class PriorUtil(SSDPriorUtil):
             if (results[i][0:4] != (-1000, -1000, -1000, -1000)).all():
                 final_boxes.append(results[i])
         
-        return final_boxes
+        return np.array(final_boxes)
 
 
     def plot_results(self, results=None, classes=None, show_labels=False, gt_data=None, gt_data_decoded=None, confidence_threshold=None, quads=False, hw = None, pad=0):
