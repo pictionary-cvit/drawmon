@@ -249,7 +249,7 @@ class PriorUtil(SSDPriorUtil):
         Todo: Check overlap(iou) of each box with each box
         if overlap is greater then iou_thres, then merge those boxes
         '''
-        self.merge_overlapping_boxes(results)
+        results = self.merge_overlapping_boxes(results)
         return results
 
     def merge_box(self, box1, box2):
