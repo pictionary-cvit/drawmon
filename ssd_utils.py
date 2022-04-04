@@ -9,6 +9,7 @@ from tqdm import tqdm
 from utils.bboxes import iou
 # from utils.model import load_weights, calc_memory_usage, count_parameters, plot_parameter_statistic, calc_receptive_field
 from utils.vis import to_rec
+from utils.mergeOverlappingBoxes import MergeOverlappingBoxes
 
 
 def non_maximum_suppression_slow(boxes, confs, iou_threshold, top_k):
@@ -255,6 +256,8 @@ class PriorUtil(object):
         
         # if any of the 2 detected-boxes has that much overlap with their overlapping area => merge those 2 boxes
         self.overlapping_thres = 0.8
+
+        self.mergeOverlappingBoxes = MergeOverlappingBoxes(self.overlapping_thres, self.image_size)
 
         num_maps = len(source_layers_names)
         

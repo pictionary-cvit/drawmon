@@ -9,7 +9,7 @@ from utils.training import (
     focal_loss,
     ciou_loss,
     reduced_focal_loss,
-    focal_regression_loss,
+    FocalRegressionLoss,
 )
 from ssd_training import compute_metrics
 
@@ -60,6 +60,8 @@ class TBPPFocalLoss(object):
 
         self.isfl = isfl
         self.neg_pos_ratio = neg_pos_ratio
+
+        self.focalRegressionLoss = FocalRegressionLoss(image_size=(img_wd, img_ht))
 
         self.metric_names = [
             "loss",
@@ -348,10 +350,9 @@ class TBPPFocalLoss(object):
             # => now the boxes are un-normalized and of format (xmin, ymin, xmax, ymax
 
             # calculating over non-normalized
-            loc_loss_aabb = focal_regression_loss(
+            loc_loss_aabb = self.focalRegressionLoss.run(
                 y_true_aabb * (img_wd, img_ht, img_wd, img_ht),
                 y_pred_aabb * (img_wd, img_ht, img_wd, img_ht),
-                img_ht*img_wd,
             )
 
             pos_loc_loss_aabb = tf.reduce_sum(
