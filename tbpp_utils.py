@@ -249,7 +249,7 @@ class PriorUtil(SSDPriorUtil):
         Todo: Check overlap(iou) of each box with each box
         if overlap is greater then iou_thres, then merge those boxes
         '''
-        results = self.merge_overlapping_boxes(results)
+        if (self.is_merge_box): results = self.merge_overlapping_boxes(results)
         return results
 
     def merge_box(self, box1, box2):
@@ -294,12 +294,13 @@ class PriorUtil(SSDPriorUtil):
                 area1 = self.find_area(unnormalized_box1)
                 area2 = self.find_area(unnormalized_box2)
 
-                overlaps = iou(unnormalized_box1, np.array([unnormalized_box2]))[0]
+                # overlaps = iou(unnormalized_box1, np.array([unnormalized_box2]))[0]
                 overlapping_area = self.find_overlapping_area(unnormalized_box1, unnormalized_box2)
                 
                 is_lies_inside = (overlapping_area/area1 >= self.overlapping_thres) or (overlapping_area/area2 >= self.overlapping_thres)
                 
-                if overlaps > self.iou_merge_thres or is_lies_inside:
+                # if overlaps > self.iou_merge_thres or is_lies_inside:
+                if is_lies_inside:
                     box = self.merge_box(results[i][0:4], results[j][0:4])
                     results[i][0:4] = box
                     results[j][0:4] = (-1000, -1000, -1000, -1000)

@@ -240,13 +240,15 @@ class PriorUtil(object):
     """
     def __init__(self, model, aspect_ratios=None, shifts=None,
             minmax_sizes=None, steps=None, scale=None, clips=None, 
-            special_ssd_boxes=None, ssd_assignment=None, isQuads=None, isRbb=None):
+            special_ssd_boxes=None, ssd_assignment=None, isQuads=None, isRbb=None, is_merge_box=True):
         
         source_layers_names = [l.name.split('/')[0] for l in model.source_layers]
         self.source_layers_names = source_layers_names
         
         self.model = model
         self.image_size = model.input_shape[1:3]
+
+        self.is_merge_box = True
 
         # if 2 detected-boxes overlap that much => merge them
         self.iou_merge_thres = 0.9

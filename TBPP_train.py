@@ -123,6 +123,10 @@ parser.add_argument("--mxRep", type=int, required=False, default=3)
 
 parser.add_argument('--baseline', type=str, required=False, default="tbppds")
 
+parser.add_argument(
+    "--isMergeBox", type=eval, choices=[True, False], required=False, default="True"
+)
+
 args = parser.parse_args()
 print(args)
 
@@ -163,6 +167,10 @@ is_curriculum_training = args.isCT
 
 max_repeat = args.mxRep
 baseline = args.baseline
+
+
+# Params for merging overlapping boxes
+is_merge_box = args.isMergeBox
 
 tf.config.experimental.list_physical_devices()
 is_gpu = len(tf.config.list_physical_devices("GPU")) > 0
@@ -206,7 +214,7 @@ model.num_classes = num_classes
 freeze = []
 
 
-prior_util = PriorUtil(model)
+prior_util = PriorUtil(model, is_merge_box=is_merge_box)
 
 checkdir = f"{checkpoint_dir}/batch" + time.strftime("%Y%m%d%H%M") + "_" + experiment
 
