@@ -108,6 +108,7 @@ class FocalRegressionLoss(object):
         print(f"Square Loss: {sq_loss.shape}")
         tf.debugging.assert_all_finite(sq_loss, "Square Loss")
 
+        print(f"Area of Image: {self.Aimg}")
         inverse_norm_A = self.Aimg/(Agt + 1e-10)
 
         print(f"Inverse Norm: {inverse_norm_A.shape}")
