@@ -38,6 +38,8 @@ class TBPPFocalLoss(object):
         aabb_diou=True,
         rbb_diou=True,
         aabb_fr=True,
+        frWithK=False,
+        frWithDiou=False,
         isfl=True,
         neg_pos_ratio=3.0,
         alpha=[0.002, 0.998],
@@ -56,7 +58,10 @@ class TBPPFocalLoss(object):
         self.aabb_diou = aabb_diou
         self.rbb_diou = rbb_diou
 
+        # params for focal-regression loss (fr loss)
         self.aabb_fr = aabb_fr
+        self.withK = frWithK
+        self.withDiou = frWithDiou
 
         self.isfl = isfl
         self.neg_pos_ratio = neg_pos_ratio
@@ -353,6 +358,8 @@ class TBPPFocalLoss(object):
             loc_loss_aabb = self.focalRegressionLoss.run(
                 y_true_aabb * (img_wd, img_ht, img_wd, img_ht),
                 y_pred_aabb * (img_wd, img_ht, img_wd, img_ht),
+                self.withK,
+                self.withDiou,
             )
 
             pos_loc_loss_aabb = tf.reduce_sum(

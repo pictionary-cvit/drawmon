@@ -88,6 +88,13 @@ parser.add_argument(
     "--aFR", type=eval, choices=[True, False], required=False, default=aabb_fr
 ) # focal-regression-loss for regression
 parser.add_argument(
+    "--frWithK", type=eval, choices=[True, False], required=False, default="False"
+) # K: distance term(i.e 2nd loss term) of DIoU
+parser.add_argument(
+    "--frWithDiou", type=eval, choices=[True, False], required=False, default="False"
+)
+
+parser.add_argument(
     "--rDiou", type=eval, choices=[True, False], required=False, default=rbb_diou
 )
 parser.add_argument("--nds", type=int, required=False, default=num_dense_segs)
@@ -141,7 +148,12 @@ isQuads = args.isQ
 isRbb = args.isR
 
 aabb_diou = args.aDiou
+
+# focal-regeression loss and params
 aabb_fr = args.aFR
+frWithK = args.frWithK #K: distance term(i.e 2nd loss term) in DIoU
+frWithDiou = args.frWithDiou
+
 rbb_diou = args.rDiou
 num_dense_segs = args.nds  # default = 3
 use_prev_feature_map = args.isPMap  # default = True
@@ -274,6 +286,8 @@ loss = TBPPFocalLoss(
     priors_variances=priors_variances,
     aabb_diou=aabb_diou,
     aabb_fr=aabb_fr,
+    frWithK=frWithK,
+    frWithDiou=frWithDiou,
     rbb_diou=rbb_diou,
     isfl=isfl,
     neg_pos_ratio=neg_pos_ratio,
