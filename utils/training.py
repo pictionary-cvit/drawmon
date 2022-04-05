@@ -1,5 +1,6 @@
 
-from cv2 import log
+from math import gamma
+from cv2 import REDUCE_SUM, log
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -101,20 +102,33 @@ class FocalRegressionLoss(object):
         Agt: Area of gt boxes
         withK: add distance component to focal-regression loss i.e (K^gamma)*(K^2)
         """
+        print(f"Calculating focal Regression Loss withK={withK}...")
         sq_loss = (tf.abs(1 - IOU))**2
 
-        inverse_norm_A = self.Aimg/(Agt + 1e-7)
-        # print(inverse_norm_A)
+        print(f"Square Loss: {sq_loss.shape}")
+        assert not tf.math.is_nan(tf.reduce_sum(sq_loss))
 
-        regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), self.gamma + tf.math.log(tf.math.log(inverse_norm_A)))
+        inverse_norm_A = self.Aimg/(Agt + 1e-7)
+
+        print(f"Inverse Norm: {inverse_norm_A.shape}")
+        assert not tf.math.is_nan(tf.reduce_sum(inverse_norm_A))
+
+        gamma_star = self.gamma + tf.math.log(tf.math.log(inverse_norm_A))
+
+        print(f"gamma star: {gamma_star.shape}")
+        assert not tf.math.is_nan(tf.reduce_sum(gamma_star))
+
+        regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), gamma_star)
         # print(regulating_comp)
+
+        print(f"Regulating Comp: {regulating_comp.shape}")
+        assert not tf.math.is_nan(tf.reduce_sum(regulating_comp))
 
         if withK:
             return ((regulating_comp*sq_loss) + tf.math.pow(K, self.gamma)*(K**2))/2
         else:
             return regulating_comp*sq_loss
         
-        return regulating_comp*sq_loss
     def run(self, y_true, y_pred, withK=False, withDiou=False):
         """Compute focal-regression loss.
 
@@ -141,11 +155,21 @@ class FocalRegressionLoss(object):
         IOU, K = self.iouAndDiouDistanceTerm(y_true, y_pred)
         Agt = self.AreaOf(y_true)
 
+        print(f"IOU shape: {IOU.shape}")
+        print(f"K shape: {K.shape}")
+        print("Agt shape: {Agt.shape}")
+
         if withDiou:
             Diou = 1-IOU+K
-            return self.Lfr(Diou, K, Agt, withK)
+            loss = self.Lfr(Diou, K, Agt, withK)
+            print(f"Loss {loss.shape}: {loss}")
+            assert not tf.math.is_nan(tf.reduce_sum(loss))
+            return loss
         else:
-            return self.Lfr(IOU, K, Agt, withK)
+            loss = self.Lfr(IOU, K, Agt, withK)
+            print(f"Loss {loss.shape}: {loss}")
+            assert not tf.math.is_nan(tf.reduce_sum(loss))
+            return loss
 
         
 
