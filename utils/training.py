@@ -106,23 +106,23 @@ class FocalRegressionLoss(object):
         sq_loss = (tf.abs(1 - IOU))**2
 
         print(f"Square Loss: {sq_loss.shape}")
-        print("Assertion:", tf.math.is_nan(tf.reduce_sum(sq_loss))==False)
+        print("Assertion:", (tf.math.is_nan(tf.reduce_sum(sq_loss))==False).numpy())
 
         inverse_norm_A = self.Aimg/(Agt + 1e-7)
 
         print(f"Inverse Norm: {inverse_norm_A.shape}")
-        print("Assertion:", tf.math.is_nan(tf.reduce_sum(inverse_norm_A))==False)
+        print("Assertion:", (tf.math.is_nan(tf.reduce_sum(inverse_norm_A))==False).numpy())
 
         gamma_star = self.gamma + tf.math.log(tf.math.log(inverse_norm_A))
 
         print(f"gamma star: {gamma_star.shape}")
-        print("Assertion:", tf.math.is_nan(tf.reduce_sum(gamma_star))==False)
+        print("Assertion:", (tf.math.is_nan(tf.reduce_sum(gamma_star))==False).numpy())
 
         regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), gamma_star)
         # print(regulating_comp)
 
         print(f"Regulating Comp: {regulating_comp.shape}")
-        print("Assertion:", tf.math.is_nan(tf.reduce_sum(regulating_comp))==False)
+        print("Assertion:", (tf.math.is_nan(tf.reduce_sum(regulating_comp))==False).numpy())
 
         if withK:
             return ((regulating_comp*sq_loss) + tf.math.pow(K, self.gamma)*(K**2))/2
@@ -163,12 +163,12 @@ class FocalRegressionLoss(object):
             Diou = 1-IOU+K
             loss = self.Lfr(Diou, K, Agt, withK)
             print(f"Loss {loss.shape}: {loss}")
-            print("Assertion:", tf.math.is_nan(tf.reduce_sum(loss))==False)
+            print("Assertion:", (tf.math.is_nan(tf.reduce_sum(loss))==False).numpy())
             return loss
         else:
             loss = self.Lfr(IOU, K, Agt, withK)
             print(f"Loss {loss.shape}: {loss}")
-            print("Assertion:", tf.math.is_nan(tf.reduce_sum(loss))==False)
+            print("Assertion:", (tf.math.is_nan(tf.reduce_sum(loss))==False).numpy())
             return loss
 
         
