@@ -61,7 +61,7 @@ class TBPPFocalLoss(object):
         self.isfl = isfl
         self.neg_pos_ratio = neg_pos_ratio
 
-        self.focalRegressionLoss = FocalRegressionLoss(image_size=(img_wd, img_ht))
+        self.focalRegressionLoss = FocalRegressionLoss(gamma=0.4, image_size=(img_wd, img_ht))
 
         self.metric_names = [
             "loss",
@@ -347,7 +347,7 @@ class TBPPFocalLoss(object):
 
             y_true_aabb = tf.reshape(y_true_aabb, [-1, 4])
             y_pred_aabb = tf.reshape(y_pred_aabb, [-1, 4])
-            # => now the boxes are un-normalized and of format (xmin, ymin, xmax, ymax
+            # => now the boxes are un-normalized and of format (xmin, ymin, xmax, ymax)
 
             # calculating over non-normalized
             loc_loss_aabb = self.focalRegressionLoss.run(

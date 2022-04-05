@@ -54,7 +54,7 @@ class MergeOverlappingBoxes(object):
                 # overlaps = iou(unnormalized_box1, np.array([unnormalized_box2]))[0]
                 overlapping_area = self.find_overlapping_area(unnormalized_box1, unnormalized_box2)
                 
-                is_lies_inside = (overlapping_area/area1 >= self.overlapping_thres) or (overlapping_area/area2 >= self.overlapping_thres)
+                is_lies_inside = (overlapping_area/(area1+1e-7) >= self.overlapping_thres) or (overlapping_area/(area2+1e-7) >= self.overlapping_thres)
                 
                 # if overlaps > self.iou_merge_thres or is_lies_inside:
                 if is_lies_inside:

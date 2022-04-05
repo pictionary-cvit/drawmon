@@ -46,34 +46,76 @@ class FocalRegressionLoss(object):
         self.image_size = image_size
         self.Aimg = self.image_size[0]*self.image_size[1]
 
-    def tf_iou(self, boxes1, boxes2):
+    def iouAndDiouDistanceTerm(self, boxes1, boxes2):
 
-        x11, y11, x12, y12 = tf.split(boxes1, 4, axis=1)
-        x21, y21, x22, y22 = tf.split(boxes2, 4, axis=1)
+        x1g, y1g, x2g, y2g = tf.unstack(boxes1, axis=-1)
+        x1, y1, x2, y2 = tf.unstack(boxes2, axis=-1)
+        
+        w_pred = x2 - x1
+        h_pred = y2 - y1
+        w_gt = x2g - x1g
+        h_gt = y2g - y1g
 
-        xA = tf.maximum(x11, x21)
-        yA = tf.maximum(y11, y21)
-        xB = tf.minimum(x12, x22)
-        yB = tf.minimum(y12, y22)
+        x_center = (x2 + x1) / 2
+        y_center = (y2 + y1) / 2
+        x_center_g = (x1g + x2g) / 2
+        y_center_g = (y1g + y2g) / 2
 
-        interArea = tf.maximum((xB - xA), 0) * tf.maximum((yB - yA), 0)
+        xc1 = tf.minimum(x1, x1g)
+        yc1 = tf.minimum(y1, y1g)
+        xc2 = tf.maximum(x2, x2g)
+        yc2 = tf.maximum(y2, y2g)
+        
+        # iou
+        xA = tf.maximum(x1g, x1)
+        yA = tf.maximum(y1g, y1)
+        xB = tf.minimum(x2g, x2)
+        yB = tf.minimum(y2g, y2)
 
-        boxAArea = (x12 - x11) * (y12 - y11)
-        boxBArea = (x22 - x21) * (y22 - y21)
+        interArea = tf.maximum(0.0, (xB - xA + 1)) * tf.maximum(0.0, yB - yA + 1)
 
-        iou = interArea / (boxAArea + boxBArea - interArea)
+        boxAArea = (x2g - x1g +1) * (y2g - y1g +1)
+        boxBArea = (x2 - x1 +1) * (y2 - y1 +1)
 
-        return iou
+        iouk = interArea / (boxAArea + boxBArea - interArea + 1e-10)
+        
+        # distance
+        c = ((xc2 - xc1) ** 2) + ((yc2 - yc1) ** 2)
+        d = ((x_center - x_center_g) ** 2) + ((y_center - y_center_g) ** 2)
+        u = d / (c + 1e-7)
+        
+        return (iouk, u)
 
     def AreaOf(self, bboxes):
         """calculate area of bboxes
             bboxes: (m, 4) for aabb
             each box is of format (xmin, ymin, xmax, ymax)
         """
-        x1, y1, x2, y2 = tf.split(bboxes, 4, axis=1)
-        return tf.abs(x2-x1)*tf.abs(y2-y1)
+        x1, y1, x2, y2 = tf.unstack(bboxes, axis=-1)
+        return tf.abs(x2-x1+1)*tf.abs(y2-y1+1)
 
-    def run(self, y_true, y_pred):
+    def Lfr(self, IOU, K, Agt, withK=False):
+        """
+        IOU: IOU of bbox
+        K: distance term(i.e 2nd loss term) in DIoU
+        Agt: Area of gt boxes
+        withK: add distance component to focal-regression loss i.e (K^gamma)*(K^2)
+        """
+        sq_loss = (tf.abs(1 - IOU))**2
+
+        inverse_norm_A = self.Aimg/(Agt + 1e-7)
+        # print(inverse_norm_A)
+
+        regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), self.gamma + tf.math.log(tf.math.log(inverse_norm_A)))
+        # print(regulating_comp)
+
+        if withK:
+            return ((regulating_comp*sq_loss) + tf.math.pow(K, self.gamma)*(K**2))/2
+        else:
+            return regulating_comp*sq_loss
+        
+        return regulating_comp*sq_loss
+    def run(self, y_true, y_pred, withK=False, withDiou=False):
         """Compute focal-regression loss.
 
         # Arguments
@@ -91,18 +133,29 @@ class FocalRegressionLoss(object):
         # References
             [ORDER](https://ml4ad.github.io/files/papers2021/ORDER:%20Open%20World%20Object%20Detection%20on%20Road%20Scenes.pdf)
         """
+
+        mask = tf.cast(y_true != 0, dtype='float32')
+        y_true = y_true * mask
+        y_pred = y_pred * mask
         
-        IOU = self.tf_iou(y_pred, y_true)
-        sq_loss = (tf.abs(1 - IOU))**2
-        inverse_norm_A = self.Aimg/self.AreaOf(y_true)
-        regulating_comp = tf.math.pow(tf.abs(1 - IOU), self.gamma + tf.math.log(tf.math.log(inverse_norm_A)))
-        return regulating_comp*sq_loss
+        IOU, K = self.iouAndDiouDistanceTerm(y_true, y_pred)
+        Agt = self.AreaOf(y_true)
+
+        if withDiou:
+            Diou = 1-IOU+K
+            return self.Lfr(Diou, K, Agt, withK)
+        else:
+            return self.Lfr(IOU, K, Agt, withK)
+
+        
 
 obj = FocalRegressionLoss()
 y_true = tf.constant([[0.0, 0.0, 2.0, 2.0], [1.0, 1.0, 2.0, 2.0]])
 y_pred = tf.constant([[0.0, 0.0, 2.0, 2.0], [1.0, 1.0, 2.0, 2.0]])
-print(obj.run(y_true, y_pred))
-
+print(obj.run(y_true, y_pred)*tf.constant([1.,1.]))
+print(obj.run(y_true, y_pred, True, False)*tf.constant([1.,1.]))
+print(obj.run(y_true, y_pred, True, True)*tf.constant([1.,1.]))
+print(obj.run(y_true, y_pred, False, True)*tf.constant([1.,1.]))
 
 def shrinkage_loss(y_true, y_pred, a=10.0, c=0.2):
     """Compute Shrikage Loss.
