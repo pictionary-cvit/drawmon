@@ -107,24 +107,24 @@ class FocalRegressionLoss(object):
         print(f"Calculating focal Regression Loss withK={withK}...")
         sq_loss = (tf.abs(1 - IOU))**2
 
-        print(f"Square Loss: {sq_loss.shape}")
+        print(f"Square Loss: {sq_loss.shape}: {sq_loss}")
         tf.debugging.assert_all_finite(sq_loss, "Square Loss")
 
         print(f"Area of Image: {self.Aimg}")
         inverse_norm_A = self.Aimg/(Agt + 1e-10)
 
-        print(f"Inverse Norm: {inverse_norm_A.shape}")
+        print(f"Inverse Norm: {inverse_norm_A.shape}: {inverse_norm_A}")
         tf.debugging.assert_all_finite(inverse_norm_A, "Inverse Norm")
 
         gamma_star = self.gamma + tf.math.log(tf.clip_by_value(tf.math.log(inverse_norm_A), 1., 1e20))
 
-        print(f"gamma star: {gamma_star.shape}")
+        print(f"gamma star: {gamma_star.shape}: {gamma_star}")
         tf.debugging.assert_all_finite(gamma_star, "Gamma Star")
 
         regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), gamma_star)
         # print(regulating_comp)
 
-        print(f"Regulating Comp: {regulating_comp.shape}")
+        print(f"Regulating Comp: {regulating_comp.shape}: {regulating_comp}")
         tf.debugging.assert_all_finite(regulating_comp, "Regulating Component")
 
         if withK:
@@ -158,8 +158,8 @@ class FocalRegressionLoss(object):
         IOU, K = self.iouAndDiouDistanceTerm(y_true, y_pred)
         Agt = self.AreaOf(y_true)
 
-        print(f"IOU shape: {IOU.shape}")
-        print(f"K shape: {K.shape}")
+        print(f"IOU shape: {IOU.shape}: {IOU}")
+        print(f"K shape: {K.shape}: {K}")
         print(f"Agt shape: {Agt.shape}")
 
         if withDiou:
