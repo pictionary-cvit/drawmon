@@ -108,12 +108,12 @@ class FocalRegressionLoss(object):
         print(f"Square Loss: {sq_loss.shape}")
         tf.debugging.assert_all_finite(sq_loss, "Square Loss")
 
-        inverse_norm_A = self.Aimg/(Agt + 1e-7)
+        inverse_norm_A = self.Aimg/(Agt + 1e-10)
 
         print(f"Inverse Norm: {inverse_norm_A.shape}")
         tf.debugging.assert_all_finite(inverse_norm_A, "Inverse Norm")
 
-        gamma_star = self.gamma + tf.math.log(tf.math.log(inverse_norm_A))
+        gamma_star = self.gamma + tf.math.log(tf.clip_by_value(tf.math.log(inverse_norm_A), 1., 1e20))
 
         print(f"gamma star: {gamma_star.shape}")
         tf.debugging.assert_all_finite(gamma_star, "Gamma Star")
