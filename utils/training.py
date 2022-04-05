@@ -106,23 +106,23 @@ class FocalRegressionLoss(object):
         sq_loss = (tf.abs(1 - IOU))**2
 
         print(f"Square Loss: {sq_loss.shape}")
-        assert not tf.math.is_nan(tf.reduce_sum(sq_loss))
+        print("Assertion:", tf.math.is_nan(tf.reduce_sum(sq_loss)==False))
 
         inverse_norm_A = self.Aimg/(Agt + 1e-7)
 
         print(f"Inverse Norm: {inverse_norm_A.shape}")
-        assert not tf.math.is_nan(tf.reduce_sum(inverse_norm_A))
+        print("Assertion:", tf.math.is_nan(tf.reduce_sum(inverse_norm_A)==False))
 
         gamma_star = self.gamma + tf.math.log(tf.math.log(inverse_norm_A))
 
         print(f"gamma star: {gamma_star.shape}")
-        assert not tf.math.is_nan(tf.reduce_sum(gamma_star))
+        print("Assertion:", tf.math.is_nan(tf.reduce_sum(gamma_star)==False))
 
         regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), gamma_star)
         # print(regulating_comp)
 
         print(f"Regulating Comp: {regulating_comp.shape}")
-        assert not tf.math.is_nan(tf.reduce_sum(regulating_comp))
+        print("Assertion:", tf.math.is_nan(tf.reduce_sum(regulating_comp)==False))
 
         if withK:
             return ((regulating_comp*sq_loss) + tf.math.pow(K, self.gamma)*(K**2))/2
@@ -157,18 +157,18 @@ class FocalRegressionLoss(object):
 
         print(f"IOU shape: {IOU.shape}")
         print(f"K shape: {K.shape}")
-        print("Agt shape: {Agt.shape}")
+        print(f"Agt shape: {Agt.shape}")
 
         if withDiou:
             Diou = 1-IOU+K
             loss = self.Lfr(Diou, K, Agt, withK)
             print(f"Loss {loss.shape}: {loss}")
-            assert not tf.math.is_nan(tf.reduce_sum(loss))
+            print("Assertion:", tf.math.is_nan(tf.reduce_sum(loss)==False))
             return loss
         else:
             loss = self.Lfr(IOU, K, Agt, withK)
             print(f"Loss {loss.shape}: {loss}")
-            assert not tf.math.is_nan(tf.reduce_sum(loss))
+            print("Assertion:", tf.math.is_nan(tf.reduce_sum(loss)==False))
             return loss
 
         
