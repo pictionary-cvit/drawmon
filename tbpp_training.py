@@ -355,6 +355,7 @@ class TBPPFocalLoss(object):
             # => now the boxes are un-normalized and of format (xmin, ymin, xmax, ymax)
 
             # calculating over non-normalized
+            print(f"Image dims: {(img_wd, img_ht)}")
             loc_loss_aabb = self.focalRegressionLoss.run(
                 y_true_aabb * (img_wd, img_ht, img_wd, img_ht),
                 y_pred_aabb * (img_wd, img_ht, img_wd, img_ht),
@@ -365,6 +366,7 @@ class TBPPFocalLoss(object):
             pos_loc_loss_aabb = tf.reduce_sum(
                 loc_loss_aabb * pos_mask_float
             )  # only for positives
+            print(f"Focal Regression Loss: {pos_loc_loss_aabb}")
             loc_loss_aabb = pos_loc_loss_aabb / (num_pos + eps)
             loc_loss += aabb_weight * loc_loss_aabb
         else:

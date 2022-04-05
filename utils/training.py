@@ -93,7 +93,9 @@ class FocalRegressionLoss(object):
             each box is of format (xmin, ymin, xmax, ymax)
         """
         x1, y1, x2, y2 = tf.unstack(bboxes, axis=-1)
-        return tf.abs(x2-x1+1)*tf.abs(y2-y1+1)
+        Ar = tf.abs(x2-x1+1)*tf.abs(y2-y1+1)
+        print(f"Ground Truth Boxes Area: {Ar}")
+        return Ar
 
     def Lfr(self, IOU, K, Agt, withK=False):
         """
