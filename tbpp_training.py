@@ -285,6 +285,7 @@ class TBPPFocalLoss(object):
             print("Evaluating focal-loss......")
             conf_loss = focal_loss(conf_true, conf_pred, alpha=self.alpha)
             conf_loss = tf.reduce_sum(conf_loss)
+            print(f"focal loss for classification: {conf_loss}")
             conf_loss = conf_loss / (num_total + eps)
         else:
             # softmax loss => hard negative mining
