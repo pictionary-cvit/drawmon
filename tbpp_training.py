@@ -461,6 +461,8 @@ class TBPPFocalLoss(object):
         # total loss
         loss = self.lambda_conf * conf_loss + self.lambda_offsets * loc_loss
 
+        print(f"Confidence Loss: {conf_loss}, Localization loss: {loc_loss}, Total Loss: {loss}")
+
         precision, recall, accuracy, fmeasure = compute_metrics(
             class_true, class_pred, conf, top_k=100 * batch_size
         )

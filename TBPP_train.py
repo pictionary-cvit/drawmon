@@ -478,8 +478,11 @@ def train(gen_train, gen_val):
                     return 0.0
                 metric_values = loss.compute(y_true, y_pred)
                 total_loss = metric_values["loss"]
+                print(f"Final Metrics(including Loss): {metric_values}")
                 if len(model.losses):
+                    print(f"Final Training Loss: {total_loss}")
                     total_loss += tf.add_n(model.losses)
+                    print(f"Loss + ModelLoss: {total_loss}")
             gradients = tape.gradient(total_loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
