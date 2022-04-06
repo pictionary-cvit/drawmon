@@ -94,6 +94,12 @@ parser.add_argument(
     "--frWithDiou", type=eval, choices=[True, False], required=False, default="False"
 )
 
+# whether to add regularization loss
+parser.add_argument(
+    "--isLayerLoss", type=eval, choices=[True, False], required=False, default="True"
+)
+
+
 parser.add_argument(
     "--rDiou", type=eval, choices=[True, False], required=False, default=rbb_diou
 )
@@ -153,6 +159,8 @@ aabb_diou = args.aDiou
 aabb_fr = args.aFR
 frWithK = args.frWithK #K: distance term(i.e 2nd loss term) in DIoU
 frWithDiou = args.frWithDiou
+
+isRegularizationLoss = args.isLayerLoss
 
 rbb_diou = args.rDiou
 num_dense_segs = args.nds  # default = 3
@@ -442,15 +450,17 @@ print(checkdir)
 
 x = []
 y_true = []
-for l in model.layers:
-    l.trainable = not l.name in freeze
-    if regularizer and l.__class__.__name__.startswith("Conv"):
-        model.add_loss(lambda l=l: regularizer(l.kernel))
+
+if isRegularizationLoss:
+    for l in model.layers:
+        l.trainable = not l.name in freeze
+        if regularizer and l.__class__.__name__.startswith("Conv"):
+            model.add_loss(lambda l=l: regularizer(l.kernel))
 
 
 # can be encapsulated into function
 
-def train(gen_train, gen_val):
+def train(gen_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train, gen_val):
     dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 
     dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
@@ -481,7 +491,8 @@ def train(gen_train, gen_val):
                 print(f"Final Metrics(including Loss): {metric_values}")
                 if len(model.losses):
                     print(f"Final Training Loss: {total_loss}")
-                    total_loss += tf.add_n(model.losses)
+                    if isRegularizationLoss:
+                        total_loss += tf.add_n(model.losses)
                     print(f"Loss + ModelLoss: {total_loss}")
             gradients = tape.gradient(total_loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
@@ -502,7 +513,7 @@ def train(gen_train, gen_val):
             return total_loss
 
 
-    # @tf.function
+    @tf.function
     def distributed_train_step(dist_inputs):
         per_replica_losses = mirrored_strategy.run(
             step,
@@ -516,7 +527,7 @@ def train(gen_train, gen_val):
         )
 
 
-    # @tf.function
+    @tf.function
     def distributed_val_step(dist_inputs):
         per_replica_losses = mirrored_strategy.run(
             step,

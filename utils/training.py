@@ -108,24 +108,24 @@ class FocalRegressionLoss(object):
         sq_loss = (tf.abs(1 - IOU))**2
 
         # print(f"Square Loss: {sq_loss.shape}: {sq_loss}")
-        tf.debugging.assert_all_finite(sq_loss, "Square Loss")
+        # tf.debugging.assert_all_finite(sq_loss, "Square Loss")
 
         # print(f"Area of Image: {self.Aimg}")
         inverse_norm_A = self.Aimg/(Agt + 1e-10)
 
         # print(f"Inverse Norm: {inverse_norm_A.shape}: {inverse_norm_A}")
-        tf.debugging.assert_all_finite(inverse_norm_A, "Inverse Norm")
+        # tf.debugging.assert_all_finite(inverse_norm_A, "Inverse Norm")
 
         gamma_star = self.gamma + tf.math.log(tf.clip_by_value(tf.math.log(inverse_norm_A), 1., 1e20))
 
         # print(f"gamma star: {gamma_star.shape}: {gamma_star}")
-        tf.debugging.assert_all_finite(gamma_star, "Gamma Star")
+        # tf.debugging.assert_all_finite(gamma_star, "Gamma Star")
 
         regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), gamma_star)
         # print(regulating_comp)
 
         # print(f"Regulating Comp: {regulating_comp.shape}: {regulating_comp}")
-        tf.debugging.assert_all_finite(regulating_comp, "Regulating Component")
+        # tf.debugging.assert_all_finite(regulating_comp, "Regulating Component")
 
         if withK:
             return ((regulating_comp*sq_loss) + tf.math.pow(K, self.gamma)*(K**2))/2
