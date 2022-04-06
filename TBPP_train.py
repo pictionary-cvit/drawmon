@@ -94,7 +94,7 @@ parser.add_argument(
     "--frWithDiou", type=eval, choices=[True, False], required=False, default="False"
 )
 
-# whether to add regularization loss
+# whether to add regularization loss => gives NaN's with focal-regression-loss
 parser.add_argument(
     "--isLayerLoss", type=eval, choices=[True, False], required=False, default="True"
 )
@@ -460,7 +460,7 @@ if isRegularizationLoss:
 
 # can be encapsulated into function
 
-def train(gen_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train, gen_val):
+def train(gen_train, gen_val):
     dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 
     dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
