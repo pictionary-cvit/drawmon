@@ -451,11 +451,10 @@ print(checkdir)
 x = []
 y_true = []
 
-if isRegularizationLoss:
-    for l in model.layers:
-        l.trainable = not l.name in freeze
-        if regularizer and l.__class__.__name__.startswith("Conv"):
-            model.add_loss(lambda l=l: regularizer(l.kernel))
+for l in model.layers:
+    l.trainable = not l.name in freeze
+    if regularizer and l.__class__.__name__.startswith("Conv"):
+        model.add_loss(lambda l=l: regularizer(l.kernel))
 
 
 # can be encapsulated into function
