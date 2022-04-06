@@ -94,7 +94,7 @@ class FocalRegressionLoss(object):
         """
         x1, y1, x2, y2 = tf.unstack(bboxes, axis=-1)
         Ar = tf.abs(x2-x1+1)*tf.abs(y2-y1+1)
-        print(f"Ground Truth Boxes Area: {Ar}")
+        # print(f"Ground Truth Boxes Area: {Ar}")
         return Ar
 
     def Lfr(self, IOU, K, Agt, withK=False):
@@ -104,28 +104,28 @@ class FocalRegressionLoss(object):
         Agt: Area of gt boxes
         withK: add distance component to focal-regression loss i.e (K^gamma)*(K^2)
         """
-        print(f"Calculating focal Regression Loss withK={withK}...")
+        # print(f"Calculating focal Regression Loss withK={withK}...")
         sq_loss = (tf.abs(1 - IOU))**2
 
-        print(f"Square Loss: {sq_loss.shape}: {sq_loss}")
-        tf.debugging.assert_all_finite(sq_loss, "Square Loss")
+        # print(f"Square Loss: {sq_loss.shape}: {sq_loss}")
+        # tf.debugging.assert_all_finite(sq_loss, "Square Loss")
 
-        print(f"Area of Image: {self.Aimg}")
+        # print(f"Area of Image: {self.Aimg}")
         inverse_norm_A = self.Aimg/(Agt + 1e-10)
 
-        print(f"Inverse Norm: {inverse_norm_A.shape}: {inverse_norm_A}")
-        tf.debugging.assert_all_finite(inverse_norm_A, "Inverse Norm")
+        # print(f"Inverse Norm: {inverse_norm_A.shape}: {inverse_norm_A}")
+        # tf.debugging.assert_all_finite(inverse_norm_A, "Inverse Norm")
 
         gamma_star = self.gamma + tf.math.log(tf.clip_by_value(tf.math.log(inverse_norm_A), 1., 1e20))
 
-        print(f"gamma star: {gamma_star.shape}: {gamma_star}")
-        tf.debugging.assert_all_finite(gamma_star, "Gamma Star")
+        # print(f"gamma star: {gamma_star.shape}: {gamma_star}")
+        # tf.debugging.assert_all_finite(gamma_star, "Gamma Star")
 
         regulating_comp = tf.math.pow(tf.abs(1 - IOU + 1e-10), gamma_star)
         # print(regulating_comp)
 
-        print(f"Regulating Comp: {regulating_comp.shape}: {regulating_comp}")
-        tf.debugging.assert_all_finite(regulating_comp, "Regulating Component")
+        # print(f"Regulating Comp: {regulating_comp.shape}: {regulating_comp}")
+        # tf.debugging.assert_all_finite(regulating_comp, "Regulating Component")
 
         if withK:
             return ((regulating_comp*sq_loss) + tf.math.pow(K, self.gamma)*(K**2))/2
@@ -158,20 +158,20 @@ class FocalRegressionLoss(object):
         IOU, K = self.iouAndDiouDistanceTerm(y_true, y_pred)
         Agt = self.AreaOf(y_true)
 
-        print(f"IOU shape: {IOU.shape}: {IOU}")
-        print(f"K shape: {K.shape}: {K}")
-        print(f"Agt shape: {Agt.shape}")
+        # print(f"IOU shape: {IOU.shape}: {IOU}")
+        # print(f"K shape: {K.shape}: {K}")
+        # print(f"Agt shape: {Agt.shape}")
 
         if withDiou:
             Diou = 1-IOU+K
             loss = self.Lfr(Diou, K, Agt, withK)
-            print(f"Loss {loss.shape}: {loss}")
-            tf.debugging.assert_all_finite(loss, "Loss with Dious")
+            # print(f"Loss {loss.shape}: {loss}")
+            # tf.debugging.assert_all_finite(loss, "Loss with Dious")
             return loss
         else:
             loss = self.Lfr(IOU, K, Agt, withK)
-            print(f"Loss {loss.shape}: {loss}")
-            tf.debugging.assert_all_finite(loss, "Loss without Diou")
+            # print(f"Loss {loss.shape}: {loss}")
+            # tf.debugging.assert_all_finite(loss, "Loss without Diou")
             return loss
 
         
