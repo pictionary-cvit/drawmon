@@ -464,7 +464,8 @@ def train(gen_train, gen_val):
         if not is_hard_mining:
             x, y_true = inputs
         else:
-            x, y_true, _ = inputs
+            x, y_true, indx = inputs
+            print(f"Example Number: {indx}")
 
         if training:
             with tf.GradientTape() as tape:
@@ -498,7 +499,7 @@ def train(gen_train, gen_val):
             return total_loss
 
 
-    @tf.function
+    # @tf.function
     def distributed_train_step(dist_inputs):
         per_replica_losses = mirrored_strategy.run(
             step,
@@ -512,7 +513,7 @@ def train(gen_train, gen_val):
         )
 
 
-    @tf.function
+    # @tf.function
     def distributed_val_step(dist_inputs):
         per_replica_losses = mirrored_strategy.run(
             step,
