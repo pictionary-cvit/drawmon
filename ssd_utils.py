@@ -249,7 +249,7 @@ class PriorUtil(object):
         self.model = model
         self.image_size = model.input_shape[1:3]
 
-        self.is_merge_box = True
+        self.is_merge_box = is_merge_box
 
         # if 2 detected-boxes overlap that much => merge them
         self.iou_merge_thres = 0.9

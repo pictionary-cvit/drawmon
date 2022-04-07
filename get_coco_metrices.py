@@ -64,6 +64,9 @@ parser.add_argument('--wpath', type=str, required=True, default=None)
 parser.add_argument('--onlyLastwt', type=eval, choices=[True, False], required=False, default=onlyLastwt)
 parser.add_argument('--activation', type=str, required=False, default='relu')
 
+parser.add_argument(
+    "--isMergeBox", type=eval, choices=[True, False], required=False, default="True"
+)
 
 args = parser.parse_args()
 print(args)
@@ -89,6 +92,10 @@ only_last = args.onlyLastwt
 
 model_name=args.model
 
+# Params for merging overlapping boxes
+is_merge_box = args.isMergeBox
+
+
 if model_name == 'ds':
     model = TBPP512_dense_separable(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_dense_segs=num_dense_segs, use_prev_feature_map=use_prev_feature_map, num_multi_scale_maps=num_multi_scale_maps, num_classes=num_classes, activation=activation)
 elif model_name == 'dsod':
@@ -99,7 +106,7 @@ else:
     sys.exit('Model Not Supported\nChoices: [ds, dsod]')
 
 
-prior_util = PriorUtil(model)
+prior_util = PriorUtil(model, is_merge_box=is_merge_box)
 priors_xy = tf.Variable(prior_util.priors_xy/prior_util.image_size, dtype=tf.float32)
 priors_wh = tf.Variable(prior_util.priors_wh/prior_util.image_size, dtype=tf.float32)
 priors_variances = tf.Variable(prior_util.priors_variances, dtype=tf.float32)
