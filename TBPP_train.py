@@ -460,8 +460,7 @@ for l in model.layers:
 
 
 # can be encapsulated into function
-iteration = 0
-def train(gen_train, gen_val):
+def train(gen_train, gen_val, iteration=0):
     dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 
     dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
@@ -576,23 +575,25 @@ def train(gen_train, gen_val):
             num_val_batches += 1
         with val_summary_writer.as_default():
             tf.summary.scalar("loss", val_loss / num_val_batches, step=iteration)
+        
+    return iteration    
 
 
 # for curriculum training
 if is_curriculum_training:
     initial_epoch = 0
     epochs=33
-    train(gen_train=gen_train_easy, gen_val=gen_val_easy)
+    iteration = train(gen_train=gen_train_easy, gen_val=gen_val_easy, iteration=0)
 
     initial_epoch = 33
     epochs=66
-    train(gen_train=gen_train_med, gen_val=gen_val_med)
+    iteration = train(gen_train=gen_train_med, gen_val=gen_val_med, iteration=iteration)
 
     initial_epoch = 66
     epochs=100
-    train(gen_train=gen_train_hard, gen_val=gen_val_hard)
+    iteration = train(gen_train=gen_train_hard, gen_val=gen_val_hard, iteration=iteration)
 else:
-    train(gen_train=gen_train, gen_val=gen_val)
+    iteration = train(gen_train=gen_train, gen_val=gen_val, iteration=0)
 
 
 # In[ ]:
