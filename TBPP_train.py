@@ -71,7 +71,10 @@ ar_med = 6e4
 parser = argparse.ArgumentParser(description="Hyperparameters")
 parser.add_argument("--data", type=str, required=False, default=data_path)
 parser.add_argument("--ckpt", type=str, required=False, default=checkpoint_dir)
+
 parser.add_argument("--bs", type=int, required=False, default=batch_size)
+parser.add_argument("--lr", type=float, required=False, default=0.001) # learning-rate
+
 parser.add_argument("--exp", type=str, required=False, default=experiment)
 parser.add_argument("--ct", type=float, required=False, default=confidence_threshold)
 parser.add_argument("--scale", type=float, required=False, default=scale)
@@ -147,6 +150,7 @@ data_path = args.data
 checkpoint_dir = args.ckpt
 
 batch_size = args.bs
+lr = args.lr
 experiment = args.exp
 confidence_threshold = args.ct
 scale = args.scale
@@ -225,8 +229,10 @@ with mirrored_strategy.scope():
         model = TBPP512_dense(input_shape=(512, 512, 1), softmax=True, scale=scale, isQuads=isQuads, isRbb=isRbb, num_classes=num_classes, activation=activation)
 
     # optimizer = keras.optimizers.SGD(lr=1e-3, momentum=0.9, decay=0, nesterov=True)
+    
+    # lower lr(1e-4, 1e-5) with some decay => plot lr vs iteration
     optimizer = keras.optimizers.Adam(
-        lr=1e-3, beta_1=0.9, beta_2=0.999, epsilon=0.001, decay=0.0
+        lr=lr, beta_1=0.9, beta_2=0.999, epsilon=0.001, decay=0.0
     )
 
 
@@ -302,6 +308,7 @@ loss = TBPPFocalLoss(
     alpha=fl_alpha,
 )
 
+# use regularizer for non-last layers
 if isRegularizationLoss:
     regularizer = keras.regularizers.l2(5e-4)  # None if disabled
 else:
@@ -453,6 +460,8 @@ print(checkdir)
 x = []
 y_true = []
 
+# clip regularizer loss
+# with defaults lower lr
 for l in model.layers:
     l.trainable = not l.name in freeze
     if regularizer and l.__class__.__name__.startswith("Conv"):
@@ -490,7 +499,8 @@ def train(gen_train, gen_val, iteration=0):
                 if len(model.losses):
                     print(f"Final Training Loss: {total_loss}")
                     if isRegularizationLoss:
-                        total_loss += tf.add_n(model.losses)
+                        regularizer_loss = tf.add_n(model.losses)
+                        if (not tf.math.is_nan(regularizer_loss)): total_loss += regularizer_loss
                     print(f"Loss + ModelLoss: {total_loss}")
             gradients = tape.gradient(total_loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
