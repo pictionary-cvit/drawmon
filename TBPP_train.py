@@ -302,8 +302,10 @@ loss = TBPPFocalLoss(
     alpha=fl_alpha,
 )
 
-# regularizer = None
-regularizer = keras.regularizers.l2(5e-4)  # None if disabled
+if isRegularizationLoss:
+    regularizer = keras.regularizers.l2(5e-4)  # None if disabled
+else:
+    regularizer = None
 
 hard_examples = []
 normal_examples = []
@@ -458,15 +460,13 @@ for l in model.layers:
 
 
 # can be encapsulated into function
-
+iteration = 0
 def train(gen_train, gen_val):
     dataset_train, dataset_val = gen_train.get_dataset(), gen_val.get_dataset()
 
     dist_dataset_train = mirrored_strategy.experimental_distribute_dataset(dataset_train)
     dist_dataset_val = mirrored_strategy.experimental_distribute_dataset(dataset_val)
 
-
-    iteration = 0
 
     # @tf.function
     def step(inputs, training=True):
