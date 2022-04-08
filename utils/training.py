@@ -105,7 +105,7 @@ class FocalRegressionLoss(object):
         withK: add distance component to focal-regression loss i.e (K^gamma)*(K^2)
         """
         # print(f"Calculating focal Regression Loss withK={withK}...")
-        sq_loss = (tf.abs(1 - IOU))**2
+        sq_loss = (tf.norm((1 - IOU), 2))**2
 
         # print(f"Square Loss: {sq_loss.shape}: {sq_loss}")
         # tf.debugging.assert_all_finite(sq_loss, "Square Loss")
@@ -116,13 +116,13 @@ class FocalRegressionLoss(object):
         # print(f"Inverse Norm: {inverse_norm_A.shape}: {inverse_norm_A}")
         # tf.debugging.assert_all_finite(inverse_norm_A, "Inverse Norm")
 
-        gamma_star = self.gamma + tf.math.log(tf.math.log(tf.clip_by_value(inverse_norm_A, 1., 1e20)))
+        gamma_star = self.gamma + tf.math.log(tf.math.log(inverse_norm_A))
         # gamma_star = tf.math.log(inverse_norm_A) # exp using single log
 
         # print(f"gamma star: {gamma_star.shape}: {gamma_star}")
         # tf.debugging.assert_all_finite(gamma_star, "Gamma Star")
 
-        regulating_comp = tf.math.pow(tf.abs(1 - IOU), gamma_star)
+        regulating_comp = (1 - IOU)**gamma_star
         # print(regulating_comp)
 
         # print(f"Regulating Comp: {regulating_comp.shape}: {regulating_comp}")

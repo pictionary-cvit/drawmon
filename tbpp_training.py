@@ -370,6 +370,7 @@ class TBPPFocalLoss(object):
             print(f"Focal Regression Loss: {pos_loc_loss_aabb}")
             loc_loss_aabb = pos_loc_loss_aabb / (num_pos + eps)
             loc_loss += aabb_weight * loc_loss_aabb
+            if tf.math.is_nan(loc_loss): loc_loss = 1e-10
         else:
             print("Evaluating aabb-l1-loss......")
             loc_loss_aabb = smooth_l1_loss(loc_true[:, :4], loc_pred[:, :4])
