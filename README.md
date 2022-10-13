@@ -58,12 +58,8 @@ The CanvasNet code is tested with
 
 - Python (`3.7.x`)
 - Tensorflow (`1.7.1`)
-- Detectron2 (`0.4`)
 - CUDA (`10.0`)
 - CudNN (`7.3-CUDA-10.0`)
-
-For setup of Detectron2, please follow
-the [official documentation](https://detectron2.readthedocs.io/en/latest/tutorials/install.html)
 
 ## Automatic Setup (From an Env File)
 
@@ -135,7 +131,7 @@ python train.py \
 ```
 
 - This outputs 2 json files in the corresponding output directory from the config.
-    - `coco_instances_results.json` - This is an encoded format which is to be parsed to get the [qualitative results](https://github.com/pictionary-cvit/drawmon#qualitative)
+    - `coco_instances_results.json` - This is an encoded format which is to be parsed to get the [qualitative results](https://github.com/pictionary-cvit/drawmon/blob/without_memcache/drawmon#qualitative)
         
 ### Qualitative
 
