@@ -90,7 +90,7 @@ pip install -r requirements.txt
     - Dataset under `images` directory
     - COCO-Pretrained Model weights in the `init_weights` directory
         - Weights
-          used: [[`Mask RCNN R50-FPN-1x Link`]()]
+          used: TBA
 
 More information can be found in folder-specific READMEs.
 
@@ -135,7 +135,7 @@ python train.py \
 ```
 
 - This outputs 2 json files in the corresponding output directory from the config.
-    - `coco_instances_results.json` - This is an encoded format which is to be parsed to get the [qualitative results](https://github.com/ihdia/Palmira#qualitative)
+    - `coco_instances_results.json` - This is an encoded format which is to be parsed to get the [qualitative results](https://github.com/pictionary-cvit/drawmon#qualitative)
         
 ### Qualitative
 
