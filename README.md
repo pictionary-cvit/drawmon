@@ -131,7 +131,7 @@ python train.py \
 ```
 
 - This outputs 2 json files in the corresponding output directory from the config.
-    - `coco_instances_results.json` - This is an encoded format which is to be parsed to get the [qualitative results](https://github.com/pictionary-cvit/drawmon/blob/without_memcache/drawmon#qualitative)
+    - `coco_instances_results.json` - This is an encoded format which is to be parsed to get the [qualitative results](https://github.com/pictionary-cvit/drawmon/blob/without_memcache/README.md#qualitative)
         
 ### Qualitative
 
