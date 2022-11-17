@@ -8,7 +8,7 @@
 
 </samp>
 
-**_To appear at [ACMMM 2022](https://2022.acmmm.org/)_**
+**_[ACMMM 2022](https://2022.acmmm.org/)_**
 
 | **[ [```Paper```](https://rebrand.ly/drawmon-pdf) ]** | **[ [```Website```](https://drawm0n.github.io/>) ]** |
 |:-------------------:|:-------------------:|
