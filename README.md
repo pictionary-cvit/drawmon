@@ -81,7 +81,7 @@ pip install -r requirements.txt
 
 ## Initial Setup:
 
-- Download AtyPict **[[`Dataset Link`](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)]**
+- Download AtyPict **[[`Dataset Link`](https://zenodo.org/record/7330402#.Y3YgFHZBy3B)]**
 - Place the
     - Dataset under `images` directory
     - COCO-Pretrained Model weights in the `init_weights` directory
